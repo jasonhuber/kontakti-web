@@ -12,18 +12,18 @@ return new class extends Migration
             $table->uuid('id')->primary();
             $table->string('title');
             $table->text('description')->nullable();
-            $table->timestampTz('due_at')->nullable();
-            $table->timestampTz('completed_at')->nullable();
+            $table->timestamp('due_at')->nullable();
+            $table->timestamp('completed_at')->nullable();
             // Polymorphic: attach to Person, Deal, Company, Discussion, or standalone
             $table->string('taskable_type', 100)->nullable();
             $table->uuid('taskable_id')->nullable();
             $table->enum('priority', ['low', 'medium', 'high', 'urgent'])->default('medium');
-            $table->timestampTz('created_at')->useCurrent();
-            $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
         });
 
         DB::statement("CREATE INDEX idx_tasks_taskable ON tasks(taskable_type, taskable_id)");
-        DB::statement("CREATE INDEX idx_tasks_due ON tasks(due_at) WHERE completed_at IS NULL");
+        DB::statement("CREATE INDEX idx_tasks_due ON tasks(due_at)");
     }
 
     public function down(): void

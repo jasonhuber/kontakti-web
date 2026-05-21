@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { get, type Person, type Deal, type Discussion } from '@/lib/api'
+import { get } from '@/lib/api'
 import { formatRelativeDate, cn } from '@/lib/utils'
 import { User, Building2, Briefcase, MessageSquare, FileText, CheckSquare, Edit } from 'lucide-react'
 
@@ -45,11 +45,11 @@ function FeedItemRow({ item }: { item: FeedItem }) {
         <p className="text-sm text-zinc-700">
           <span className="font-medium capitalize">{subjectType} </span>
           <span className="text-zinc-500">{VERB_LABELS[item.verb] ?? item.verb}</span>
-          {item.payload?.title && (
-            <span className="font-medium"> "{item.payload.title as string}"</span>
+          {typeof item.payload?.title === 'string' && (
+            <span className="font-medium"> &ldquo;{item.payload.title}&rdquo;</span>
           )}
-          {item.verb === 'stage_changed' && item.payload?.from && item.payload?.to && (
-            <span className="text-zinc-500"> from <span className="font-medium">{item.payload.from as string}</span> to <span className="font-medium">{item.payload.to as string}</span></span>
+          {item.verb === 'stage_changed' && typeof item.payload?.from === 'string' && typeof item.payload?.to === 'string' && (
+            <span className="text-zinc-500"> from <span className="font-medium">{item.payload.from}</span> to <span className="font-medium">{item.payload.to}</span></span>
           )}
         </p>
         <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(item.created_at)}</p>

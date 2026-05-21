@@ -83,11 +83,11 @@ export function NoteEditor({ note, notableType, notableId, onSaved, className }:
             •
           </ToolbarButton>
           <ToolbarButton
-            onClick={() => editor?.chain().focus().toggleTaskList?.().run()}
-            active={editor?.isActive('taskList')}
-            title="Task list"
+            onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+            active={editor?.isActive('orderedList')}
+            title="Numbered list"
           >
-            ☐
+            1.
           </ToolbarButton>
         </div>
 

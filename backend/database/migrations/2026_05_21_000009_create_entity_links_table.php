@@ -18,7 +18,7 @@ return new class extends Migration
             // knows, reports_to, investor, advisor_to, works_with, introduced_by, etc.
             $table->string('relationship_type', 100)->default('knows');
             $table->text('notes')->nullable();
-            $table->timestampTz('created_at')->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
         });
 
         DB::statement("CREATE INDEX idx_entity_links_source ON entity_links(source_type, source_id)");

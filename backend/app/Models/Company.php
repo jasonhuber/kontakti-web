@@ -50,11 +50,8 @@ class Company extends Model
     public function scopeSearch(Builder $query, string $term): Builder
     {
         return $query->whereRaw(
-            "search_vector @@ plainto_tsquery('english', ?)",
-            [$term]
-        )->orderByRaw(
-            "ts_rank(search_vector, plainto_tsquery('english', ?)) DESC",
-            [$term]
+            "MATCH(name, domain, industry, notes) AGAINST (? IN BOOLEAN MODE)",
+            [$term . '*']
         );
     }
 }

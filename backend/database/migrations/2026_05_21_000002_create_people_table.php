@@ -19,37 +19,20 @@ return new class extends Migration
             $table->foreignUuid('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->string('title', 200)->nullable();
             $table->enum('relationship_strength', ['cold', 'warm', 'hot', 'close'])->default('cold');
-            $table->timestampTz('last_contacted_at')->nullable();
-            $table->timestampTz('next_followup_at')->nullable();
+            $table->timestamp('last_contacted_at')->nullable();
+            $table->timestamp('next_followup_at')->nullable();
             $table->text('notes')->nullable();
-            $table->jsonb('metadata')->default('{}');
-            $table->timestampTz('created_at')->useCurrent();
-            $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
-            $table->softDeletesTz();
+            $table->json('metadata')->default('{}');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
+
+            // Full-text search index
+            $table->fullText(['first_name', 'last_name', 'email', 'title', 'notes']);
         });
 
-        DB::statement("ALTER TABLE people ADD COLUMN search_vector tsvector");
-        DB::statement("
-            CREATE OR REPLACE FUNCTION people_search_vector_update() RETURNS trigger AS $$
-            BEGIN
-                NEW.search_vector :=
-                    setweight(to_tsvector('english', coalesce(NEW.first_name, '')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(NEW.last_name, '')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(NEW.email, '')), 'B') ||
-                    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'C') ||
-                    setweight(to_tsvector('english', coalesce(NEW.notes, '')), 'D');
-                RETURN NEW;
-            END
-            $$ LANGUAGE plpgsql;
-        ");
-        DB::statement("
-            CREATE TRIGGER people_search_vector_trigger
-            BEFORE INSERT OR UPDATE ON people
-            FOR EACH ROW EXECUTE FUNCTION people_search_vector_update();
-        ");
-        DB::statement("CREATE INDEX idx_people_fts ON people USING gin(search_vector)");
         DB::statement("CREATE INDEX idx_people_company ON people(company_id)");
-        DB::statement("CREATE INDEX idx_people_followup ON people(next_followup_at) WHERE next_followup_at IS NOT NULL");
+        DB::statement("CREATE INDEX idx_people_followup ON people(next_followup_at)");
     }
 
     public function down(): void

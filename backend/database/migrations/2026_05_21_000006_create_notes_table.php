@@ -16,30 +16,16 @@ return new class extends Migration
             $table->string('notable_type', 100)->nullable();
             $table->uuid('notable_id')->nullable();
             $table->string('obsidian_path', 500)->nullable();
-            $table->timestampTz('synced_at')->nullable();
-            $table->jsonb('metadata')->default('{}');
-            $table->timestampTz('created_at')->useCurrent();
-            $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
-            $table->softDeletesTz();
+            $table->timestamp('synced_at')->nullable();
+            $table->json('metadata')->default('{}');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
+
+            // Full-text search index
+            $table->fullText(['title', 'body']);
         });
 
-        DB::statement("ALTER TABLE notes ADD COLUMN search_vector tsvector");
-        DB::statement("
-            CREATE OR REPLACE FUNCTION notes_search_vector_update() RETURNS trigger AS $$
-            BEGIN
-                NEW.search_vector :=
-                    setweight(to_tsvector('english', coalesce(NEW.title, '')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(NEW.body, '')), 'B');
-                RETURN NEW;
-            END
-            $$ LANGUAGE plpgsql;
-        ");
-        DB::statement("
-            CREATE TRIGGER notes_search_vector_trigger
-            BEFORE INSERT OR UPDATE ON notes
-            FOR EACH ROW EXECUTE FUNCTION notes_search_vector_update();
-        ");
-        DB::statement("CREATE INDEX idx_notes_fts ON notes USING gin(search_vector)");
         DB::statement("CREATE INDEX idx_notes_notable ON notes(notable_type, notable_id)");
     }
 

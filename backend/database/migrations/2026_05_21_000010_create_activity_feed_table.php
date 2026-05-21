@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('verb', 50);
             $table->string('object_type', 100)->nullable(); // optional second entity
             $table->uuid('object_id')->nullable();
-            $table->jsonb('payload')->default('{}'); // diff, context, display data
-            $table->timestampTz('created_at')->useCurrent();
+            $table->json('payload')->default('{}'); // diff, context, display data
+            $table->timestamp('created_at')->useCurrent();
         });
 
         DB::statement("CREATE INDEX idx_activity_subject ON activity_feed(subject_type, subject_id)");

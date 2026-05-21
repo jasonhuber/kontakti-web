@@ -84,7 +84,7 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
   return json
 }
 
-const get = <T>(path: string, params?: Record<string, string>) => request<T>('GET', path, undefined, params)
+export const get = <T>(path: string, params?: Record<string, string>) => request<T>('GET', path, undefined, params)
 const post = <T>(path: string, body: unknown) => request<T>('POST', path, body)
 const put = <T>(path: string, body: unknown) => request<T>('PUT', path, body)
 const patch = <T>(path: string, body: unknown) => request<T>('PATCH', path, body)

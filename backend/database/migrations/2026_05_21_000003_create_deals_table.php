@@ -25,12 +25,12 @@ return new class extends Migration
             $table->char('currency', 3)->default('USD');
             $table->foreignUuid('company_id')->nullable()->constrained('companies')->nullOnDelete();
             $table->date('expected_close_date')->nullable();
-            $table->timestampTz('closed_at')->nullable();
+            $table->timestamp('closed_at')->nullable();
             $table->integer('pipeline_position')->default(0);
-            $table->jsonb('metadata')->default('{}');
-            $table->timestampTz('created_at')->useCurrent();
-            $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
-            $table->softDeletesTz();
+            $table->json('metadata')->default('{}');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
         });
 
         DB::statement("CREATE INDEX idx_deals_stage ON deals(stage)");

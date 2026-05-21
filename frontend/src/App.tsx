@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import {
-  Search, Users, Building2, Briefcase, MessageSquare, Calendar, Settings, Activity
+  Search, Users, Building2, Briefcase, MessageSquare, Settings, Activity
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 

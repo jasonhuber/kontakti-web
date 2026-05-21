@@ -13,7 +13,7 @@ return new class extends Migration
             $table->foreignUuid('person_id')->constrained('people')->cascadeOnDelete();
             $table->string('role', 100)->nullable(); // champion, decision_maker, influencer, user, blocker
             $table->primary(['deal_id', 'person_id']);
-            $table->timestampTz('created_at')->useCurrent();
+            $table->timestamp('created_at')->useCurrent();
         });
     }
 

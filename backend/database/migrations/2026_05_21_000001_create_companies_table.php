@@ -2,7 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\{Schema, DB};
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
@@ -18,32 +18,14 @@ return new class extends Migration
             $table->string('linkedin_url', 500)->nullable();
             $table->string('website', 500)->nullable();
             $table->text('notes')->nullable();
-            $table->jsonb('metadata')->default('{}');
-            $table->timestampTz('created_at')->useCurrent();
-            $table->timestampTz('updated_at')->useCurrent()->useCurrentOnUpdate();
-            $table->softDeletesTz();
-        });
+            $table->json('metadata')->default('{}');
+            $table->timestamp('created_at')->useCurrent();
+            $table->timestamp('updated_at')->useCurrent()->useCurrentOnUpdate();
+            $table->softDeletes();
 
-        // Full-text search vector
-        DB::statement("ALTER TABLE companies ADD COLUMN search_vector tsvector");
-        DB::statement("
-            CREATE OR REPLACE FUNCTION companies_search_vector_update() RETURNS trigger AS $$
-            BEGIN
-                NEW.search_vector :=
-                    setweight(to_tsvector('english', coalesce(NEW.name, '')), 'A') ||
-                    setweight(to_tsvector('english', coalesce(NEW.domain, '')), 'B') ||
-                    setweight(to_tsvector('english', coalesce(NEW.industry, '')), 'C') ||
-                    setweight(to_tsvector('english', coalesce(NEW.notes, '')), 'D');
-                RETURN NEW;
-            END
-            $$ LANGUAGE plpgsql;
-        ");
-        DB::statement("
-            CREATE TRIGGER companies_search_vector_trigger
-            BEFORE INSERT OR UPDATE ON companies
-            FOR EACH ROW EXECUTE FUNCTION companies_search_vector_update();
-        ");
-        DB::statement("CREATE INDEX idx_companies_fts ON companies USING gin(search_vector)");
+            // Full-text search index
+            $table->fullText(['name', 'domain', 'industry', 'notes']);
+        });
     }
 
     public function down(): void
