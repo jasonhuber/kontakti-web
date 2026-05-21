@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy Konataki to kontakti.app on Hostinger
+# Deploy Kontakti to kontakti.app on Hostinger
 # Usage: ./deploy.sh [--frontend-only] [--backend-only]
 set -euo pipefail
 

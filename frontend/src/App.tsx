@@ -33,7 +33,7 @@ function AppShell() {
             <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
               <span className="text-white text-xs font-bold">K</span>
             </div>
-            <span className="font-semibold text-zinc-900 text-sm">Konataki</span>
+            <span className="font-semibold text-zinc-900 text-sm">Kontakti</span>
           </div>
         </div>
 

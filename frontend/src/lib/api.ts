@@ -1,4 +1,4 @@
-// API client for Konataki backend
+// API client for Kontakti backend
 
 export type RelationshipStrength = 'cold' | 'warm' | 'hot' | 'close'
 export type DealStage = 'discovery' | 'qualified' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost' | 'on_hold'
@@ -64,7 +64,7 @@ class ApiError extends Error {
 }
 
 async function request<T>(method: string, path: string, body?: unknown, params?: Record<string, string>): Promise<T> {
-  const token = localStorage.getItem('konataki_token')
+  const token = localStorage.getItem('kontakti_token')
   const url = new URL(BASE + path, window.location.origin)
   if (params) Object.entries(params).forEach(([k, v]) => url.searchParams.set(k, v))
 

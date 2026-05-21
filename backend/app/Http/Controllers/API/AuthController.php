@@ -23,7 +23,7 @@ class AuthController extends Controller
         }
 
         $user  = Auth::user();
-        $token = $user->createToken('konataki-app')->plainTextToken;
+        $token = $user->createToken('kontakti-app')->plainTextToken;
 
         return response()->json([
             'token' => $token,

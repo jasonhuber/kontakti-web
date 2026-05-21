@@ -63,7 +63,7 @@ class ObsidianExportService
         $deals = $person->deals->map(fn($d) => "- {$d->obsidian_link}")->join("\n");
 
         $content = $this->renderFrontmatter([
-            'konataki_id'     => $person->id,
+            'kontakti_id'     => $person->id,
             'type'            => 'person',
             'company'         => $person->company?->obsidian_link,
             'title'           => $person->title,
@@ -109,7 +109,7 @@ class ObsidianExportService
         $deals  = $company->deals->map(fn($d) => "- {$d->obsidian_link} — {$d->stage}")->join("\n");
 
         $content = $this->renderFrontmatter([
-            'konataki_id' => $company->id,
+            'kontakti_id' => $company->id,
             'type'        => 'company',
             'domain'      => $company->domain,
             'industry'    => $company->industry,
@@ -148,7 +148,7 @@ class ObsidianExportService
             ->join(', ');
 
         $content = $this->renderFrontmatter([
-            'konataki_id'      => $discussion->id,
+            'kontakti_id'      => $discussion->id,
             'type'             => 'discussion',
             'date'             => $discussion->date->toISOString(),
             'discussion_type'  => $discussion->type,
@@ -187,7 +187,7 @@ class ObsidianExportService
             ->join("\n");
 
         $content = $this->renderFrontmatter([
-            'konataki_id'   => $deal->id,
+            'kontakti_id'   => $deal->id,
             'type'          => 'deal',
             'stage'         => $deal->stage,
             'value'         => $deal->value ? "{$deal->currency} {$deal->value}" : null,
@@ -218,7 +218,7 @@ class ObsidianExportService
         $path  = $this->subpath("notes/{$slug}.md");
 
         $content = $this->renderFrontmatter([
-            'konataki_id' => $note->id,
+            'kontakti_id' => $note->id,
             'type'        => 'note',
             'title'       => $note->title,
         ]);
