@@ -1,12 +1,9 @@
 #!/usr/bin/env bash
 # Deploy Kontakti to kontakti.app on Hostinger
-# Usage: ./deploy.sh [--frontend-only] [--backend-only]
+# Usage: ./deploy.sh [--frontend-only] [--backend-only] [--marketing-only]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-ENV_FILE="$ROOT/backend/.env"
-[ -f "$ENV_FILE" ] || { echo "Missing $ENV_FILE"; exit 1; }
-set -a; source "$ENV_FILE"; set +a
 
 SSH_KEY="${HOME}/.ssh/id_ed25519_hostinger"
 HOST="88.223.85.36"
@@ -20,23 +17,46 @@ RSYNC_RSH="ssh -i $SSH_KEY -p $PORT -o StrictHostKeyChecking=accept-new"
 
 FRONTEND_ONLY=false
 BACKEND_ONLY=false
+MARKETING_ONLY=false
 for arg in "$@"; do
-  case $arg in --frontend-only) FRONTEND_ONLY=true ;; --backend-only) BACKEND_ONLY=true ;; esac
+  case $arg in
+    --frontend-only)  FRONTEND_ONLY=true ;;
+    --backend-only)   BACKEND_ONLY=true ;;
+    --marketing-only) MARKETING_ONLY=true ;;
+  esac
 done
 
+# ── Marketing page (static HTML at root) ──────────────────────────────────────
+if ! $BACKEND_ONLY && ! $FRONTEND_ONLY; then
+  echo "→ Deploying marketing page to root..."
+  rsync -avz --delete \
+    -e "$RSYNC_RSH" \
+    --exclude='.DS_Store' \
+    "$ROOT/frontend/marketing/" \
+    "$USER@$HOST:~/$REMOTE_PUBLIC/"
+fi
+
+if $MARKETING_ONLY; then
+  echo "✅ Marketing deployed. https://kontakti.app"
+  exit 0
+fi
+
+# ── React SPA (built to /app subdirectory) ────────────────────────────────────
 if ! $BACKEND_ONLY; then
   echo "→ Building frontend..."
   cd "$ROOT/frontend"
   npm run build
 
-  echo "→ Deploying frontend to $REMOTE_PUBLIC..."
+  echo "→ Deploying SPA to $REMOTE_PUBLIC/app/..."
+  "${SSH_CMD[@]}" "$USER@$HOST" "mkdir -p ~/$REMOTE_PUBLIC/app"
   rsync -avz --delete \
     -e "$RSYNC_RSH" \
     --exclude='.DS_Store' \
     "$ROOT/frontend/dist/" \
-    "$USER@$HOST:~/$REMOTE_PUBLIC/"
+    "$USER@$HOST:~/$REMOTE_PUBLIC/app/"
 fi
 
+# ── Backend ───────────────────────────────────────────────────────────────────
 if ! $FRONTEND_ONLY; then
   echo "→ Syncing backend files..."
   rsync -avz \
@@ -60,6 +80,22 @@ if ! $FRONTEND_ONLY; then
     echo 'Backend deployed'
   "
 fi
+
+# ── .htaccess ─────────────────────────────────────────────────────────────────
+cat <<'HTACCESS' | "${SSH_CMD[@]}" "$USER@$HOST" "cat > ~/$REMOTE_PUBLIC/.htaccess"
+Options -MultiViews
+RewriteEngine On
+
+# Route /api/* to Laravel backend
+RewriteCond %{REQUEST_URI} ^/api/
+RewriteRule ^api/(.*)$ ../backend/public/index.php [L,QSA]
+
+# SPA fallback for /app/* (React app)
+RewriteCond %{REQUEST_URI} ^/app/
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^app/.*$ /app/index.html [L]
+HTACCESS
 
 echo ""
 echo "✅ Deployed. https://kontakti.app"
