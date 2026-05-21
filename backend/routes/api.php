@@ -6,7 +6,6 @@ use App\Http\Controllers\API\{
     PeopleController,
     CompaniesController,
     DiscussionsController,
-    DealsController,
     NotesController,
     TasksController,
     TagController,
@@ -43,13 +42,6 @@ Route::prefix('v1')->group(function () {
         Route::apiResource('discussions', DiscussionsController::class);
         Route::post('discussions/{discussion}/participants/{person}', [DiscussionsController::class, 'addParticipant']);
         Route::delete('discussions/{discussion}/participants/{person}', [DiscussionsController::class, 'removeParticipant']);
-
-        // Deals
-        Route::apiResource('deals', DealsController::class);
-        Route::patch('deals/{deal}/stage', [DealsController::class, 'updateStage']);
-        Route::post('deals/reorder', [DealsController::class, 'reorder']);
-        Route::post('deals/{deal}/contacts/{person}', [DealsController::class, 'addContact']);
-        Route::delete('deals/{deal}/contacts/{person}', [DealsController::class, 'removeContact']);
 
         // Notes (standalone + polymorphic via ?notable_type=&notable_id=)
         Route::apiResource('notes', NotesController::class);

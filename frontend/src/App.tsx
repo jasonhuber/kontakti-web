@@ -1,23 +1,22 @@
 import { useState } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GlobalSearch } from '@/components/GlobalSearch'
-import {
-  Search, Users, Building2, Briefcase, MessageSquare, Settings, Activity
-} from 'lucide-react'
+import { PeoplePage } from '@/pages/People'
+import { CompaniesPage } from '@/pages/Companies'
+import { Search, Users, Building2, MessageSquare, Settings, Activity } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000 } },
 })
 
-type View = 'people' | 'companies' | 'deals' | 'discussions' | 'feed'
+type View = 'people' | 'companies' | 'interactions' | 'feed'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-  { id: 'people',      label: 'People',      icon: Users },
-  { id: 'companies',   label: 'Companies',   icon: Building2 },
-  { id: 'deals',       label: 'Deals',       icon: Briefcase },
-  { id: 'discussions', label: 'Discussions', icon: MessageSquare },
-  { id: 'feed',        label: 'Activity',    icon: Activity },
+  { id: 'people',       label: 'People',       icon: Users },
+  { id: 'companies',    label: 'Companies',    icon: Building2 },
+  { id: 'interactions', label: 'Interactions', icon: MessageSquare },
+  { id: 'feed',         label: 'Activity',     icon: Activity },
 ]
 
 function AppShell() {
@@ -79,26 +78,28 @@ function AppShell() {
         <ViewRouter view={view} />
       </main>
 
-      {/* Global search */}
       <GlobalSearch
         open={searchOpen}
         onOpenChange={setSearchOpen}
-        onNavigate={(url) => {
-          // Parse URL path and navigate
-          console.log('Navigate to:', url)
-          setSearchOpen(false)
-        }}
+        onNavigate={() => setSearchOpen(false)}
       />
     </div>
   )
 }
 
 function ViewRouter({ view }: { view: View }) {
-  // Placeholder — these will be real page components
+  if (view === 'people')       return <PeoplePage />
+  if (view === 'companies')    return <CompaniesPage />
+  if (view === 'interactions') return <Placeholder title="Interactions" />
+  if (view === 'feed')         return <Placeholder title="Activity" />
+  return null
+}
+
+function Placeholder({ title }: { title: string }) {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-semibold text-zinc-900 capitalize">{view}</h1>
-      <p className="text-zinc-500 mt-1 text-sm">This view is under construction.</p>
+    <div className="p-6 max-w-5xl mx-auto">
+      <h1 className="text-xl font-semibold text-zinc-900">{title}</h1>
+      <p className="text-zinc-400 mt-1 text-sm">Coming soon.</p>
     </div>
   )
 }
