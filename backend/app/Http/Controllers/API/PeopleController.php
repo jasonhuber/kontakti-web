@@ -3,8 +3,9 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Person, ActivityFeedItem};
+use App\Models\{Person, Company, ActivityFeedItem};
 use Illuminate\Http\{Request, JsonResponse};
+use Illuminate\Support\Facades\Http;
 
 class PeopleController extends Controller
 {
@@ -180,6 +181,61 @@ class PeopleController extends Controller
         return response()->json(
             $person->tasks()->orderBy('due_at')->get()
         );
+    }
+
+    public function enrich(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'linkedin_url' => 'required|url|max:500',
+        ]);
+
+        $apiKey = env('PROXYCURL_API_KEY');
+
+        $response = Http::withHeaders([
+            'Authorization' => "Bearer {$apiKey}",
+        ])->get('https://nubela.co/proxycurl/api/v2/linkedin', [
+            'url'       => $data['linkedin_url'],
+            'use_cache' => 'if-present',
+        ]);
+
+        if ($response->failed()) {
+            return response()->json([
+                'message' => 'Proxycurl lookup failed: ' . $response->status(),
+            ], 502);
+        }
+
+        $p = $response->json();
+
+        // Resolve or create company from first experience entry
+        $companyId = null;
+        $companyName = $p['experiences'][0]['company'] ?? null;
+        if ($companyName) {
+            $company = Company::firstOrCreate(
+                ['user_id' => auth()->id(), 'name' => $companyName],
+                ['user_id' => auth()->id(), 'name' => $companyName]
+            );
+            $companyId = $company->id;
+        }
+
+        // Build linkedin_url from public_identifier if not already a full URL
+        $linkedinUrl = $data['linkedin_url'];
+        if (empty($linkedinUrl) && !empty($p['public_identifier'])) {
+            $linkedinUrl = "https://www.linkedin.com/in/{$p['public_identifier']}";
+        }
+
+        $person = Person::create([
+            'user_id'               => auth()->id(),
+            'first_name'            => $p['first_name'] ?? 'Unknown',
+            'last_name'             => $p['last_name'] ?? '',
+            'title'                 => $p['headline'] ?? null,
+            'avatar_url'            => $p['profile_pic_url'] ?? null,
+            'linkedin_url'          => $linkedinUrl,
+            'company_id'            => $companyId,
+            'notes'                 => $p['summary'] ?? null,
+            'relationship_strength' => 'cold',
+        ]);
+
+        return response()->json($person->load(['company', 'tags']), 201);
     }
 
     private function syncTags(Person $person, array $tagNames): void

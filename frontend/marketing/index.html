@@ -55,9 +55,9 @@
   <!-- Statement -->
   <section id="what" class="section">
     <div class="container">
-      <p class="lede">Most CRMs are built for teams with quotas, managers, and 47 integrations you'll never use.</p>
-      <p>You just want to know who you talked to, what you discussed, and who needs a follow-up. Kontakti is for that.</p>
-      <p>No pipeline stages. No deal tracking. No monthly seat count. Just people, companies, and the history between you and them.</p>
+      <p class="section-label">Why Kontakti</p>
+      <p class="lede">Most CRMs are built for sales teams with quotas, managers, and 47 integrations you'll never use.</p>
+      <p>You just want to know who you talked to, what you discussed, and who needs a follow-up. No pipeline stages. No deal tracking. No seat count. Just people, companies, and the history between you and them.</p>
     </div>
   </section>
 
@@ -100,14 +100,27 @@
   <hr class="divider">
 
   <!-- Open source -->
-  <section class="section statement">
+  <section class="section">
     <div class="container">
-      <h2>Fully open source.</h2>
-      <p>MIT licensed. All three codebases are public on GitHub. Fork it, self-host it, or build your own client on top of the API.</p>
+      <p class="section-label">Open source · MIT licensed</p>
+      <h2>All three codebases are public.</h2>
+      <p>Fork it, self-host it, or build your own client on top of the API. No vendor lock-in, no black box.</p>
       <div class="link-row">
-        <a href="https://github.com/jasonhuber/kontakti-web" target="_blank" rel="noopener" class="plain-link">→ Web — Laravel 12 + React 18</a>
-        <a href="https://github.com/jasonhuber/kontakti-ios" target="_blank" rel="noopener" class="plain-link">→ iOS — SwiftUI + SwiftData</a>
-        <a href="https://github.com/jasonhuber/kontakti-android" target="_blank" rel="noopener" class="plain-link">→ Android — Kotlin + Jetpack Compose</a>
+        <a href="https://github.com/jasonhuber/kontakti-web" target="_blank" rel="noopener" class="repo-link">
+          <span class="repo-arrow">→</span>
+          <span class="repo-name">kontakti-web</span>
+          <span class="repo-stack">Laravel 12 + React 18</span>
+        </a>
+        <a href="https://github.com/jasonhuber/kontakti-ios" target="_blank" rel="noopener" class="repo-link">
+          <span class="repo-arrow">→</span>
+          <span class="repo-name">kontakti-ios</span>
+          <span class="repo-stack">SwiftUI + SwiftData</span>
+        </a>
+        <a href="https://github.com/jasonhuber/kontakti-android" target="_blank" rel="noopener" class="repo-link">
+          <span class="repo-arrow">→</span>
+          <span class="repo-name">kontakti-android</span>
+          <span class="repo-stack">Kotlin + Jetpack Compose</span>
+        </a>
       </div>
     </div>
   </section>
@@ -138,9 +151,16 @@
   <!-- Mobile -->
   <section class="section">
     <div class="container">
+      <p class="section-label">iOS · Android · Offline-first</p>
       <h2>Native mobile apps.</h2>
-      <p>iOS and Android — both built natively, not wrapped in React Native. Offline-first: the app serves your cached contacts immediately and syncs when you're back online.</p>
-      <p>Import contacts from your phone's address book or Gmail directly into Kontakti. The same clean REST API backs the web, iOS, and Android apps — build your own client if you want.</p>
+      <p>Built natively — not wrapped in React Native. Offline-first: the app serves your cached contacts immediately, then syncs when you're back online. No spinner waiting for a network connection.</p>
+      <p>Import contacts directly from your phone's address book or Gmail. The same clean REST API backs the web, iOS, and Android apps — so you can build your own client on top of it too.</p>
+      <div class="platform-tags">
+        <span class="platform-tag">SwiftUI + SwiftData</span>
+        <span class="platform-tag">Kotlin + Jetpack Compose</span>
+        <span class="platform-tag">Room + WorkManager</span>
+        <span class="platform-tag">NWPathMonitor</span>
+      </div>
     </div>
   </section>
 
@@ -149,6 +169,7 @@
   <!-- Obsidian -->
   <section class="section">
     <div class="container">
+      <p class="section-label">Obsidian integration</p>
       <h2>Works with Obsidian.</h2>
       <p>Every note you write in Kontakti can export to your Obsidian vault as plain Markdown with wiki-links intact. The structured data lives in the database; the readable version lives in your vault.</p>
       <p>Your data, in your format, in your vault — even if you stop using Kontakti tomorrow.</p>

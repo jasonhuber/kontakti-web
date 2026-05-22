@@ -29,6 +29,7 @@ Route::prefix('v1')->group(function () {
         Route::post('contacts/import', [ContactImportController::class, 'import']);
 
         // People
+        Route::post('people/enrich', [PeopleController::class, 'enrich']);
         Route::apiResource('people', PeopleController::class);
         Route::get('people/{person}/timeline', [PeopleController::class, 'timeline']);
         Route::get('people/{person}/discussions', [PeopleController::class, 'discussions']);

@@ -29,11 +29,27 @@ done
 # ── Marketing page (static HTML at root) ──────────────────────────────────────
 if ! $BACKEND_ONLY && ! $FRONTEND_ONLY; then
   echo "→ Deploying marketing page to root..."
+
+  # Stamp CSS/JS links with a cache-buster so LiteSpeed serves fresh assets
+  CACHE_VER=$(date +%s)
+  STAMPED_HTML=$(mktemp /tmp/kontakti-index-XXXX.html)
+  sed "s/style\.css?v=[0-9]*/style.css?v=${CACHE_VER}/g; s/style\.css\"/style.css?v=${CACHE_VER}\"/g" \
+    "$ROOT/frontend/marketing/index.html" > "$STAMPED_HTML"
+
   rsync -avz --delete \
     -e "$RSYNC_RSH" \
     --exclude='.DS_Store' \
+    --exclude='.htaccess' \
     "$ROOT/frontend/marketing/" \
     "$USER@$HOST:~/$REMOTE_PUBLIC/"
+
+  # Upload the stamped index.html (overwrites the one rsync just pushed)
+  rsync -avz \
+    -e "$RSYNC_RSH" \
+    "$STAMPED_HTML" \
+    "$USER@$HOST:~/$REMOTE_PUBLIC/index.html"
+
+  rm -f "$STAMPED_HTML"
 fi
 
 if $MARKETING_ONLY; then
@@ -87,15 +103,14 @@ cat <<'HTACCESS' | "${SSH_CMD[@]}" "$USER@$HOST" "cat > ~/$REMOTE_PUBLIC/.htacce
 Options -MultiViews
 RewriteEngine On
 
-# Route /api/* to Laravel backend
+# Route /api/* to Laravel via the api.php bootstrap shim
 RewriteCond %{REQUEST_URI} ^/api/
-RewriteRule ^api/(.*)$ ../backend/public/index.php [L,QSA]
+RewriteRule ^api/(.*)$ api.php [L,QSA]
 
-# SPA fallback for /app/* (React app)
-RewriteCond %{REQUEST_URI} ^/app/
+# SPA fallback for /app and /app/* — skip real files (JS/CSS assets), rewrite everything else
+RewriteCond %{REQUEST_URI} ^/app
 RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^app/.*$ /app/index.html [L]
+RewriteRule ^app(/.*)?$ /app/index.html [L]
 HTACCESS
 fi
 

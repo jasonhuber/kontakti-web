@@ -132,7 +132,17 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 }
 
 export default function App() {
-  const [token, setToken] = useState<string | null>(() => localStorage.getItem('kontakti_token'))
+  const [token, setToken] = useState<string | null>(() => {
+    // Handle Google OAuth redirect: /app?token=xxx
+    const params = new URLSearchParams(window.location.search)
+    const urlToken = params.get('token')
+    if (urlToken) {
+      localStorage.setItem('kontakti_token', urlToken)
+      window.history.replaceState({}, '', window.location.pathname)
+      return urlToken
+    }
+    return localStorage.getItem('kontakti_token')
+  })
   const [authView, setAuthView] = useState<'login' | 'register'>('login')
 
   useEffect(() => {

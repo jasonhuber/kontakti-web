@@ -113,6 +113,7 @@ export const people = {
   create: (data: Partial<Person>) => post<Person>('/people', data),
   update: (id: string, data: Partial<Person>) => put<Person>(`/people/${id}`, data),
   remove: (id: string) => del(`/people/${id}`),
+  enrich: (linkedin_url: string) => post<Person>('/people/enrich', { linkedin_url }),
   timeline: (id: string) => get<TimelineEvent[]>(`/people/${id}/timeline`),
   discussions: (id: string) => get<Discussion[]>(`/people/${id}/discussions`),
   deals: (id: string) => get<Deal[]>(`/people/${id}/deals`),
