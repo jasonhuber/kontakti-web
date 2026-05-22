@@ -3,9 +3,10 @@ import { auth } from '@/lib/api'
 
 interface Props {
   onLogin: (token: string) => void
+  onRegisterClick?: () => void
 }
 
-export function LoginPage({ onLogin }: Props) {
+export function LoginPage({ onLogin, onRegisterClick }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -88,6 +89,15 @@ export function LoginPage({ onLogin }: Props) {
             </button>
           </form>
         </div>
+
+        {onRegisterClick && (
+          <p className="text-center text-sm text-zinc-500 mt-5">
+            Don't have an account?{' '}
+            <button onClick={onRegisterClick} className="text-indigo-600 hover:text-indigo-700 font-medium">
+              Create one
+            </button>
+          </p>
+        )}
       </div>
     </div>
   )

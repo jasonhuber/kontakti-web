@@ -98,7 +98,10 @@ const del = (path: string) => request<void>('DELETE', path)
 
 // — Auth —
 export const auth = {
-  login: (email: string, password: string) => post<{ token: string; user: unknown }>('/auth/login', { email, password }),
+  login: (email: string, password: string) =>
+    post<{ token: string; user: unknown }>('/auth/login', { email, password }),
+  register: (name: string, username: string, email: string, password: string, password_confirmation: string) =>
+    post<{ token: string; user: unknown }>('/auth/register', { name, username, email, password, password_confirmation }),
   logout: () => post<void>('/auth/logout', {}),
   me: () => get<{ id: string; email: string; name: string }>('/auth/me'),
 }

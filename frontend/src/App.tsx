@@ -2,24 +2,27 @@ import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GlobalSearch } from '@/components/GlobalSearch'
 import { LoginPage } from '@/pages/LoginPage'
+import { RegisterPage } from '@/pages/RegisterPage'
 import { PeoplePage } from '@/pages/People'
 import { CompaniesPage } from '@/pages/Companies'
 import { DiscussionsPage } from '@/pages/Discussions'
 import { ActivityFeedPage } from '@/pages/ActivityFeedPage'
+import { TasksPage } from '@/pages/TasksPage'
 import { auth } from '@/lib/api'
-import { Search, Users, Building2, MessageSquare, Settings, Activity, LogOut } from 'lucide-react'
+import { Search, Users, Building2, MessageSquare, Settings, Activity, LogOut, CheckSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000 } },
 })
 
-type View = 'people' | 'companies' | 'discussions' | 'feed'
+type View = 'people' | 'companies' | 'discussions' | 'tasks' | 'feed'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'people',       label: 'People',       icon: Users },
   { id: 'companies',    label: 'Companies',    icon: Building2 },
   { id: 'discussions',  label: 'Discussions',  icon: MessageSquare },
+  { id: 'tasks',        label: 'Tasks',        icon: CheckSquare },
   { id: 'feed',         label: 'Activity',     icon: Activity },
 ]
 
@@ -115,6 +118,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {view === 'people'      && <PeoplePage />}
         {view === 'companies'   && <CompaniesPage />}
         {view === 'discussions' && <DiscussionsPage />}
+        {view === 'tasks'       && <TasksPage />}
         {view === 'feed'        && <ActivityFeedPage />}
       </main>
 
@@ -129,6 +133,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
 export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('kontakti_token'))
+  const [authView, setAuthView] = useState<'login' | 'register'>('login')
 
   useEffect(() => {
     const handler = () => setToken(null)
@@ -136,14 +141,16 @@ export default function App() {
     return () => window.removeEventListener('auth:logout', handler)
   }, [])
 
-  const handleLogin = (newToken: string) => setToken(newToken)
-  const handleLogout = () => setToken(null)
+  const handleAuth = (newToken: string) => setToken(newToken)
+  const handleLogout = () => { setToken(null); setAuthView('login') }
 
   return (
     <QueryClientProvider client={queryClient}>
       {token
         ? <AppShell onLogout={handleLogout} />
-        : <LoginPage onLogin={handleLogin} />
+        : authView === 'login'
+          ? <LoginPage onLogin={handleAuth} onRegisterClick={() => setAuthView('register')} />
+          : <RegisterPage onRegister={handleAuth} onLoginClick={() => setAuthView('login')} />
       }
     </QueryClientProvider>
   )

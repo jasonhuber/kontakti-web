@@ -3,8 +3,9 @@ import { useQuery } from '@tanstack/react-query'
 import { companies, type Company, type Person } from '@/lib/api'
 import { PersonCard } from '@/components/PersonCard'
 import { PersonDetailModal } from './PersonDetailModal'
+import { EditCompanyModal } from './EditCompanyModal'
 import { formatRelativeDate } from '@/lib/utils'
-import { X, Building2, Globe, Linkedin, Users, MessageSquare, Loader2 } from 'lucide-react'
+import { X, Building2, Globe, Linkedin, Users, MessageSquare, Loader2, Pencil } from 'lucide-react'
 
 const DISCUSSION_TYPE_ICONS: Record<string, string> = {
   call: '📞', meeting: '🤝', email: '✉️', message: '💬', event: '📅', other: '•',
@@ -17,6 +18,7 @@ interface Props {
 
 export function CompanyDetailModal({ company, onClose }: Props) {
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [editing, setEditing] = useState(false)
 
   const { data: detail } = useQuery({
     queryKey: ['company', company.id],
@@ -55,9 +57,14 @@ export function CompanyDetailModal({ company, onClose }: Props) {
               {c.industry && <p className="text-sm text-zinc-500">{c.industry}</p>}
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setEditing(true)} className="text-zinc-400 hover:text-zinc-600 transition-colors" title="Edit">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -151,6 +158,10 @@ export function CompanyDetailModal({ company, onClose }: Props) {
 
       {selectedPerson && (
         <PersonDetailModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+      )}
+
+      {editing && (
+        <EditCompanyModal company={c} onClose={() => setEditing(false)} />
       )}
     </>
   )

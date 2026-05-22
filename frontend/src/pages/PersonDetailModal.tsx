@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { people, type Person, type TimelineEvent } from '@/lib/api'
 import { formatRelativeDate, STRENGTH_LABELS, STRENGTH_COLORS, cn } from '@/lib/utils'
-import { X, Mail, Phone, Linkedin, Calendar, MessageSquare, CheckSquare, FileText, Loader2 } from 'lucide-react'
+import { X, Mail, Phone, Linkedin, Calendar, MessageSquare, CheckSquare, FileText, Loader2, Pencil } from 'lucide-react'
+import { EditPersonModal } from './EditPersonModal'
 
 interface Props {
   person: Person
@@ -37,6 +39,8 @@ function TimelineRow({ event }: { event: TimelineEvent }) {
 }
 
 export function PersonDetailModal({ person, onClose }: Props) {
+  const [editing, setEditing] = useState(false)
+
   const { data: detail } = useQuery({
     queryKey: ['person', person.id],
     queryFn: () => people.get(person.id),
@@ -76,9 +80,14 @@ export function PersonDetailModal({ person, onClose }: Props) {
               )}
             </div>
           </div>
-          <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => setEditing(true)} className="text-zinc-400 hover:text-zinc-600 transition-colors" title="Edit">
+              <Pencil className="w-4 h-4" />
+            </button>
+            <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -192,6 +201,9 @@ export function PersonDetailModal({ person, onClose }: Props) {
           </div>
         </div>
       </div>
+      {editing && (
+        <EditPersonModal person={p} onClose={() => setEditing(false)} />
+      )}
     </>
   )
 }
