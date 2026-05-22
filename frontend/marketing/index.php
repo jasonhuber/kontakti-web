@@ -1,3 +1,8 @@
+<?php
+header('Cache-Control: no-cache, must-revalidate, max-age=0');
+header('Pragma: no-cache');
+header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -16,7 +21,7 @@
   <meta name="twitter:description" content="A personal CRM. Open source. Web, iOS, and Android.">
 
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23111'/><text x='50%' y='54%' font-family='system-ui,sans-serif' font-weight='700' font-size='18' fill='white' text-anchor='middle' dominant-baseline='middle'>K</text></svg>">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=<?php echo filemtime(__DIR__.'/style.css'); ?>">
 </head>
 <body>
 

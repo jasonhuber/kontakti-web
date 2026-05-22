@@ -26,30 +26,20 @@ for arg in "$@"; do
   esac
 done
 
-# ── Marketing page (static HTML at root) ──────────────────────────────────────
+# ── Marketing page (served via PHP to bypass LiteSpeed full-page cache) ────────
 if ! $BACKEND_ONLY && ! $FRONTEND_ONLY; then
   echo "→ Deploying marketing page to root..."
-
-  # Stamp CSS/JS links with a cache-buster so LiteSpeed serves fresh assets
-  CACHE_VER=$(date +%s)
-  STAMPED_HTML=$(mktemp /tmp/kontakti-index-XXXX.html)
-  sed "s/style\.css?v=[0-9]*/style.css?v=${CACHE_VER}/g; s/style\.css\"/style.css?v=${CACHE_VER}\"/g" \
-    "$ROOT/frontend/marketing/index.html" > "$STAMPED_HTML"
 
   rsync -avz --delete \
     -e "$RSYNC_RSH" \
     --exclude='.DS_Store' \
     --exclude='.htaccess' \
+    --exclude='index.html' \
     "$ROOT/frontend/marketing/" \
     "$USER@$HOST:~/$REMOTE_PUBLIC/"
 
-  # Upload the stamped index.html (overwrites the one rsync just pushed)
-  rsync -avz \
-    -e "$RSYNC_RSH" \
-    "$STAMPED_HTML" \
-    "$USER@$HOST:~/$REMOTE_PUBLIC/index.html"
-
-  rm -f "$STAMPED_HTML"
+  # Remove stale static index.html so PHP takes precedence
+  "${SSH_CMD[@]}" "$USER@$HOST" "rm -f ~/$REMOTE_PUBLIC/index.html"
 fi
 
 if $MARKETING_ONLY; then

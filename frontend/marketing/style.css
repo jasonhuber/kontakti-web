@@ -7,7 +7,7 @@
   --bg:      #ffffff;
   --bg-2:    #f7f7f7;
   --indigo:  #4f46e5;
-  --max:     660px;
+  --max:     600px;
   --serif:   Georgia, 'Times New Roman', Times, serif;
   --sans:    -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
 }
@@ -93,6 +93,11 @@ a { color: inherit; text-decoration: none; }
   letter-spacing: -0.02em;
   color: var(--text);
   margin-bottom: 22px;
+}
+
+.hero h1 em {
+  font-style: italic;
+  font-weight: 700;
 }
 
 .subhead {
@@ -332,45 +337,26 @@ a { color: inherit; text-decoration: none; }
   padding: 4px 10px;
 }
 
-/* ── Mode cards ──────────────────────────────── */
-.modes {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 20px;
-  margin-top: 32px;
-}
-
-.mode-card {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 26px;
-}
-
-.mode-card h3 {
-  font-family: var(--sans);
-  font-size: 16px;
-  font-weight: 600;
-  margin-bottom: 10px;
+/* ── Inline links (inside feature rows, prose) ─── */
+.feature-item dd a {
   color: var(--text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-color: var(--border-2);
+  transition: text-decoration-color 0.15s;
 }
 
-.mode-card p {
-  font-family: var(--sans);
-  font-size: 14px;
-  color: var(--text-2);
-  line-height: 1.6;
-  margin-bottom: 0;
+.feature-item dd a:hover {
+  text-decoration-color: var(--text);
 }
 
 /* ── Closer ──────────────────────────────────── */
 .closer {
-  text-align: center;
-  padding: 84px 0;
+  padding: 64px 0;
 }
 
 .closer h2 {
-  font-size: clamp(28px, 4vw, 44px);
+  font-size: clamp(26px, 3.5vw, 38px);
   font-weight: 700;
   letter-spacing: -0.02em;
   margin-bottom: 12px;
@@ -379,10 +365,8 @@ a { color: inherit; text-decoration: none; }
 .closer p {
   font-size: 17px;
   color: var(--text-2);
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
-
-.closer .hero-actions { justify-content: center; }
 
 /* ── Footer ──────────────────────────────────── */
 .footer {
@@ -433,8 +417,6 @@ a { color: inherit; text-decoration: none; }
 
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 600px) {
-  .modes { grid-template-columns: 1fr; }
-
   .feature-item {
     grid-template-columns: 1fr;
     gap: 5px;
