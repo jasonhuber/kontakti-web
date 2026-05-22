@@ -45,4 +45,29 @@ class User extends Authenticatable
     {
         return $this->hasMany(Deal::class);
     }
+
+    public function discussions()
+    {
+        return $this->hasMany(Discussion::class);
+    }
+
+    public function notes()
+    {
+        return $this->hasMany(Note::class);
+    }
+
+    public function tasks()
+    {
+        return $this->hasMany(Task::class);
+    }
+
+    public function tags()
+    {
+        return $this->hasMany(Tag::class);
+    }
+
+    public function entityLinks()
+    {
+        return $this->hasMany(EntityLink::class);
+    }
 }

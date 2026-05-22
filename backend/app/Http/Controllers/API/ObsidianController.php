@@ -17,11 +17,11 @@ class ObsidianController extends Controller
         $vaultPath = config('obsidian.vault_path');
 
         return response()->json([
-            'vault_path'    => $vaultPath,
-            'vault_exists'  => is_dir($vaultPath),
-            'sync_enabled'  => config('obsidian.sync_enabled'),
-            'auto_sync'     => config('obsidian.auto_sync'),
-            'unsynced_notes' => Note::unsynced()->count(),
+            'vault_path'     => $vaultPath,
+            'vault_exists'   => is_dir($vaultPath),
+            'sync_enabled'   => config('obsidian.sync_enabled'),
+            'auto_sync'      => config('obsidian.auto_sync'),
+            'unsynced_notes' => Note::where('user_id', auth()->id())->unsynced()->count(),
         ]);
     }
 
@@ -37,12 +37,24 @@ class ObsidianController extends Controller
 
     public function exportOne(Request $request, string $type, string $id): JsonResponse
     {
+        $userId = auth()->id();
+
         $path = match ($type) {
-            'person'     => $this->exporter->exportPerson(\App\Models\Person::findOrFail($id)),
-            'company'    => $this->exporter->exportCompany(\App\Models\Company::findOrFail($id)),
-            'discussion' => $this->exporter->exportDiscussion(\App\Models\Discussion::findOrFail($id)),
-            'deal'       => $this->exporter->exportDeal(\App\Models\Deal::findOrFail($id)),
-            'note'       => $this->exporter->exportNote(\App\Models\Note::findOrFail($id)),
+            'person'     => $this->exporter->exportPerson(
+                \App\Models\Person::where('user_id', $userId)->findOrFail($id)
+            ),
+            'company'    => $this->exporter->exportCompany(
+                \App\Models\Company::where('user_id', $userId)->findOrFail($id)
+            ),
+            'discussion' => $this->exporter->exportDiscussion(
+                \App\Models\Discussion::where('user_id', $userId)->findOrFail($id)
+            ),
+            'deal'       => $this->exporter->exportDeal(
+                \App\Models\Deal::where('user_id', $userId)->findOrFail($id)
+            ),
+            'note'       => $this->exporter->exportNote(
+                \App\Models\Note::where('user_id', $userId)->findOrFail($id)
+            ),
             default      => abort(422, "Unknown type: {$type}"),
         };
 

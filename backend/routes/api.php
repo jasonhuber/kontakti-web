@@ -5,6 +5,7 @@ use App\Http\Controllers\API\{
     AuthController,
     PeopleController,
     CompaniesController,
+    ContactImportController,
     DiscussionsController,
     NotesController,
     TasksController,
@@ -23,6 +24,9 @@ Route::prefix('v1')->group(function () {
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
         Route::post('auth/logout', [AuthController::class, 'logout']);
+
+        // Bulk contact import
+        Route::post('contacts/import', [ContactImportController::class, 'import']);
 
         // People
         Route::apiResource('people', PeopleController::class);

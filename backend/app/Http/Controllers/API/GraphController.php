@@ -5,18 +5,19 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\{Person, Company, Deal, EntityLink};
 use Illuminate\Http\{Request, JsonResponse};
-use Illuminate\Support\Facades\DB;
 
 class GraphController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        // Build nodes + edges in React Flow format
+        $user = auth()->user();
+
         $nodes = [];
         $edges = [];
 
-        // People nodes
-        Person::select('id', 'first_name', 'last_name', 'company_id', 'relationship_strength')
+        // People nodes — scoped to auth user
+        $user->people()
+            ->select('id', 'first_name', 'last_name', 'company_id', 'relationship_strength')
             ->with('company:id,name')
             ->get()
             ->each(function ($p) use (&$nodes) {
@@ -31,26 +32,35 @@ class GraphController extends Controller
                 ];
             });
 
-        // Company nodes
-        Company::select('id', 'name', 'industry')->get()->each(function ($c) use (&$nodes) {
-            $nodes[] = [
-                'id'   => $c->id,
-                'type' => 'company',
-                'data' => ['label' => $c->name, 'industry' => $c->industry],
-            ];
-        });
+        // Company nodes — scoped to auth user
+        $user->companies()
+            ->select('id', 'name', 'industry')
+            ->get()
+            ->each(function ($c) use (&$nodes) {
+                $nodes[] = [
+                    'id'   => $c->id,
+                    'type' => 'company',
+                    'data' => ['label' => $c->name, 'industry' => $c->industry],
+                ];
+            });
 
-        // Deal nodes
-        Deal::select('id', 'title', 'stage', 'company_id')->get()->each(function ($d) use (&$nodes) {
-            $nodes[] = [
-                'id'   => $d->id,
-                'type' => 'deal',
-                'data' => ['label' => $d->title, 'stage' => $d->stage],
-            ];
-        });
+        // Deal nodes — scoped to auth user
+        $user->deals()
+            ->select('id', 'title', 'stage', 'company_id')
+            ->get()
+            ->each(function ($d) use (&$nodes) {
+                $nodes[] = [
+                    'id'   => $d->id,
+                    'type' => 'deal',
+                    'data' => ['label' => $d->title, 'stage' => $d->stage],
+                ];
+            });
 
-        // Edges: person → company
-        Person::whereNotNull('company_id')->select('id', 'company_id')->get()
+        // Edges: person → company (only for this user's people)
+        $user->people()
+            ->whereNotNull('company_id')
+            ->select('id', 'company_id')
+            ->get()
             ->each(function ($p) use (&$edges) {
                 $edges[] = [
                     'id'     => "works-{$p->id}",
@@ -60,8 +70,11 @@ class GraphController extends Controller
                 ];
             });
 
-        // Edges: deal → company
-        Deal::whereNotNull('company_id')->select('id', 'company_id')->get()
+        // Edges: deal → company (only for this user's deals)
+        $user->deals()
+            ->whereNotNull('company_id')
+            ->select('id', 'company_id')
+            ->get()
             ->each(function ($d) use (&$edges) {
                 $edges[] = [
                     'id'     => "deal-co-{$d->id}",
@@ -71,15 +84,17 @@ class GraphController extends Controller
                 ];
             });
 
-        // Edges: entity_links
-        EntityLink::all()->each(function ($link) use (&$edges) {
-            $edges[] = [
-                'id'     => $link->id,
-                'source' => $link->source_id,
-                'target' => $link->target_id,
-                'label'  => $link->relationship_type,
-            ];
-        });
+        // Edges: entity_links — scoped to auth user
+        EntityLink::where('user_id', auth()->id())
+            ->get()
+            ->each(function ($link) use (&$edges) {
+                $edges[] = [
+                    'id'     => $link->id,
+                    'source' => $link->source_id,
+                    'target' => $link->target_id,
+                    'label'  => $link->relationship_type,
+                ];
+            });
 
         return response()->json(['nodes' => $nodes, 'edges' => $edges]);
     }
@@ -95,12 +110,15 @@ class GraphController extends Controller
             'notes'             => 'nullable|string',
         ]);
 
+        $data['user_id'] = auth()->id();
         $link = EntityLink::create($data);
         return response()->json($link, 201);
     }
 
     public function deleteLink(EntityLink $link): JsonResponse
     {
+        abort_if($link->user_id !== auth()->id(), 403);
+
         $link->delete();
         return response()->json(null, 204);
     }
