@@ -14,6 +14,7 @@ class ActivityFeedItem extends Model
     public $timestamps = false;
 
     protected $fillable = [
+        'user_id',
         'subject_type', 'subject_id', 'verb',
         'object_type', 'object_id', 'payload',
     ];
@@ -32,6 +33,7 @@ class ActivityFeedItem extends Model
         array $payload = []
     ): static {
         return static::create([
+            'user_id'      => auth()->id(),
             'subject_type' => $subjectType,
             'subject_id'   => $subjectId,
             'verb'         => $verb,

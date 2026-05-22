@@ -13,6 +13,7 @@ class Company extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'name', 'domain', 'logo_url', 'industry',
         'size_range', 'linkedin_url', 'website', 'notes', 'metadata',
     ];

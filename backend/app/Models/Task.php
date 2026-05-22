@@ -12,6 +12,7 @@ class Task extends Model
     use HasUuids;
 
     protected $fillable = [
+        'user_id',
         'title', 'description', 'due_at', 'completed_at',
         'taskable_type', 'taskable_id', 'priority',
     ];

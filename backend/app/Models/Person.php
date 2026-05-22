@@ -13,6 +13,7 @@ class Person extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'first_name', 'last_name', 'email', 'phone',
         'linkedin_url', 'avatar_url', 'company_id', 'title',
         'relationship_strength', 'last_contacted_at', 'next_followup_at',

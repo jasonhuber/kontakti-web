@@ -10,7 +10,8 @@ class PeopleController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Person::with(['company', 'tags'])
+        $query = auth()->user()->people()
+            ->with(['company', 'tags'])
             ->withCount(['discussions', 'deals', 'tasks' => fn($q) => $q->pending()]);
 
         if ($search = $request->get('q')) {
@@ -55,6 +56,7 @@ class PeopleController extends Controller
             'tags'                  => 'nullable|array',
         ]);
 
+        $data['user_id'] = auth()->id();
         $person = Person::create($data);
 
         if (!empty($data['tags'])) {
@@ -68,6 +70,8 @@ class PeopleController extends Controller
 
     public function show(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         return response()->json(
             $person->load(['company', 'tags', 'tasks' => fn($q) => $q->pending()->orderBy('due_at')])
         );
@@ -75,6 +79,8 @@ class PeopleController extends Controller
 
     public function update(Request $request, Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         $data = $request->validate([
             'first_name'            => 'sometimes|string|max:100',
             'last_name'             => 'sometimes|string|max:100',
@@ -104,12 +110,16 @@ class PeopleController extends Controller
 
     public function destroy(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         $person->delete();
         return response()->json(null, 204);
     }
 
     public function timeline(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         $discussions = $person->discussions()
             ->with('deal')
             ->orderByDesc('date')
@@ -138,6 +148,8 @@ class PeopleController extends Controller
 
     public function discussions(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         return response()->json(
             $person->discussions()->with(['participants', 'deal'])->orderByDesc('date')->get()
         );
@@ -145,6 +157,8 @@ class PeopleController extends Controller
 
     public function deals(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         return response()->json(
             $person->deals()->with('company')->orderByDesc('created_at')->get()
         );
@@ -152,6 +166,8 @@ class PeopleController extends Controller
 
     public function notes(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         return response()->json(
             $person->notes()->orderByDesc('created_at')->get()
         );
@@ -159,6 +175,8 @@ class PeopleController extends Controller
 
     public function tasks(Person $person): JsonResponse
     {
+        abort_if($person->user_id !== auth()->id(), 403);
+
         return response()->json(
             $person->tasks()->orderBy('due_at')->get()
         );
@@ -168,8 +186,8 @@ class PeopleController extends Controller
     {
         $tagIds = collect($tagNames)->map(function (string $name) {
             return \App\Models\Tag::firstOrCreate(
-                ['slug' => \Illuminate\Support\Str::slug($name)],
-                ['name' => $name, 'slug' => \Illuminate\Support\Str::slug($name)]
+                ['user_id' => auth()->id(), 'slug' => \Illuminate\Support\Str::slug($name)],
+                ['user_id' => auth()->id(), 'name' => $name, 'slug' => \Illuminate\Support\Str::slug($name)]
             )->id;
         });
 

@@ -9,7 +9,7 @@ export interface Tag { id: string; name: string; slug: string; color: string }
 export interface Company {
   id: string; name: string; domain?: string; logo_url?: string
   industry?: string; size_range?: string; linkedin_url?: string; website?: string
-  notes?: string; metadata: Record<string, unknown>
+  notes?: string; metadata?: Record<string, unknown>
   people_count?: number; deals_count?: number
   tags: Tag[]; created_at: string; updated_at: string
 }
@@ -19,7 +19,7 @@ export interface Person {
   company_id?: string; company?: Company; title?: string
   relationship_strength: RelationshipStrength
   last_contacted_at?: string; next_followup_at?: string
-  notes?: string; metadata: Record<string, unknown>
+  notes?: string; metadata?: Record<string, unknown>
   discussions_count?: number; deals_count?: number; tasks_count?: number
   tags: Tag[]; created_at: string; updated_at: string
 }
@@ -27,14 +27,14 @@ export interface Deal {
   id: string; title: string; description?: string; stage: DealStage
   value?: number; currency: string; company_id?: string; company?: Company
   expected_close_date?: string; closed_at?: string; pipeline_position: number
-  metadata: Record<string, unknown>; contacts?: Person[]; tags: Tag[]
+  metadata?: Record<string, unknown>; contacts?: Person[]; tags: Tag[]
   discussions_count?: number; tasks_count?: number
   created_at: string; updated_at: string
 }
 export interface Discussion {
   id: string; title: string; date: string; type: DiscussionType
   summary?: string; body?: string; deal_id?: string; deal?: Deal
-  participants?: Person[]; metadata: Record<string, unknown>
+  participants?: Person[]; metadata?: Record<string, unknown>
   created_at: string; updated_at: string
 }
 export interface Note {
@@ -78,6 +78,12 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
     body: body != null ? JSON.stringify(body) : undefined,
   })
 
+  if (res.status === 401) {
+    localStorage.removeItem('kontakti_token')
+    window.dispatchEvent(new Event('auth:logout'))
+    const json = await res.json().catch(() => ({}))
+    throw new ApiError(401, (json as { message?: string }).message ?? 'Unauthorized')
+  }
   if (res.status === 204) return undefined as T
   const json = await res.json()
   if (!res.ok) throw new ApiError(res.status, json.message ?? res.statusText)
@@ -119,6 +125,7 @@ export const companies = {
   remove: (id: string) => del(`/companies/${id}`),
   people: (id: string) => get<Person[]>(`/companies/${id}/people`),
   deals: (id: string) => get<Deal[]>(`/companies/${id}/deals`),
+  discussions: (id: string) => get<Discussion[]>(`/companies/${id}/discussions`),
 }
 
 // — Deals —

@@ -13,6 +13,7 @@ class Note extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'title', 'body', 'notable_type', 'notable_id',
         'obsidian_path', 'synced_at', 'metadata',
     ];

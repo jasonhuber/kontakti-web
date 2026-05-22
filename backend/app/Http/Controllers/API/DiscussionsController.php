@@ -10,7 +10,8 @@ class DiscussionsController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Discussion::with(['participants', 'deal'])
+        $query = Discussion::where('user_id', auth()->id())
+            ->with(['participants', 'deal'])
             ->orderByDesc('date');
 
         if ($search = $request->get('q')) {
@@ -42,6 +43,7 @@ class DiscussionsController extends Controller
             'metadata'         => 'nullable|array',
         ]);
 
+        $data['user_id'] = auth()->id();
         $discussion = Discussion::create($data);
 
         if (!empty($data['participant_ids'])) {
@@ -60,11 +62,15 @@ class DiscussionsController extends Controller
 
     public function show(Discussion $discussion): JsonResponse
     {
+        abort_if($discussion->user_id !== auth()->id(), 403);
+
         return response()->json($discussion->load(['participants.company', 'deal', 'notes']));
     }
 
     public function update(Request $request, Discussion $discussion): JsonResponse
     {
+        abort_if($discussion->user_id !== auth()->id(), 403);
+
         $data = $request->validate([
             'title'   => 'sometimes|string|max:255',
             'date'    => 'sometimes|date',
@@ -83,18 +89,24 @@ class DiscussionsController extends Controller
 
     public function destroy(Discussion $discussion): JsonResponse
     {
+        abort_if($discussion->user_id !== auth()->id(), 403);
+
         $discussion->delete();
         return response()->json(null, 204);
     }
 
     public function addParticipant(Discussion $discussion, Person $person): JsonResponse
     {
+        abort_if($discussion->user_id !== auth()->id(), 403);
+
         $discussion->participants()->syncWithoutDetaching([$person->id]);
         return response()->json($discussion->load('participants'));
     }
 
     public function removeParticipant(Discussion $discussion, Person $person): JsonResponse
     {
+        abort_if($discussion->user_id !== auth()->id(), 403);
+
         $discussion->participants()->detach($person->id);
         return response()->json($discussion->load('participants'));
     }

@@ -71,7 +71,7 @@ export function ActivityFeed({ subjectType, subjectId, className }: Props) {
 
   const { data, isLoading } = useQuery({
     queryKey: ['feed', subjectType, subjectId],
-    queryFn: () => get<FeedItem[]>('/v1/feed', params),
+    queryFn: () => get<FeedItem[]>('/feed', params),
     refetchInterval: 30_000,
   })
 

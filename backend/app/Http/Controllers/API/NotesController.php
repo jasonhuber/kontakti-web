@@ -13,7 +13,7 @@ class NotesController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Note::with('tags')->orderByDesc('updated_at');
+        $query = Note::where('user_id', auth()->id())->with('tags')->orderByDesc('updated_at');
 
         if ($search = $request->get('q')) {
             $query->search($search);
@@ -37,17 +37,22 @@ class NotesController extends Controller
             'metadata'     => 'nullable|array',
         ]);
 
+        $data['user_id'] = auth()->id();
         $note = Note::create($data);
         return response()->json($note, 201);
     }
 
     public function show(Note $note): JsonResponse
     {
+        abort_if($note->user_id !== auth()->id(), 403);
+
         return response()->json($note->load('tags'));
     }
 
     public function update(Request $request, Note $note): JsonResponse
     {
+        abort_if($note->user_id !== auth()->id(), 403);
+
         $data = $request->validate([
             'title'    => 'sometimes|nullable|string|max:255',
             'body'     => 'sometimes|string',
@@ -60,12 +65,16 @@ class NotesController extends Controller
 
     public function destroy(Note $note): JsonResponse
     {
+        abort_if($note->user_id !== auth()->id(), 403);
+
         $note->delete();
         return response()->json(null, 204);
     }
 
     public function exportToObsidian(Note $note): JsonResponse
     {
+        abort_if($note->user_id !== auth()->id(), 403);
+
         $path = $this->obsidian->exportNote($note);
         return response()->json(['path' => $path, 'synced_at' => $note->fresh()->synced_at]);
     }

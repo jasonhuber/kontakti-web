@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Person, Company, Discussion, Deal, Note};
+use App\Models\{Person, Company, Discussion, Note};
 use Illuminate\Http\{Request, JsonResponse};
 
 class SearchController extends Controller
@@ -15,6 +15,7 @@ class SearchController extends Controller
         $results = [];
 
         $people = Person::search($term)
+            ->where('user_id', auth()->id())
             ->with('company')
             ->limit(5)
             ->get()
@@ -27,6 +28,7 @@ class SearchController extends Controller
             ]);
 
         $companies = Company::search($term)
+            ->where('user_id', auth()->id())
             ->limit(5)
             ->get()
             ->map(fn($c) => [
@@ -37,19 +39,8 @@ class SearchController extends Controller
                 'url'      => "/companies/{$c->id}",
             ]);
 
-        $deals = Deal::search($term)
-            ->with('company')
-            ->limit(5)
-            ->get()
-            ->map(fn($d) => [
-                'type'     => 'deal',
-                'id'       => $d->id,
-                'title'    => $d->title,
-                'subtitle' => implode(' · ', array_filter([$d->stage, $d->company?->name])),
-                'url'      => "/deals/{$d->id}",
-            ]);
-
         $discussions = Discussion::search($term)
+            ->where('user_id', auth()->id())
             ->limit(5)
             ->get()
             ->map(fn($d) => [
@@ -61,6 +52,7 @@ class SearchController extends Controller
             ]);
 
         $notes = Note::search($term)
+            ->where('user_id', auth()->id())
             ->limit(5)
             ->get()
             ->map(fn($n) => [
@@ -73,11 +65,10 @@ class SearchController extends Controller
 
         return response()->json([
             'query'   => $term,
-            'results' => $people->merge($companies)->merge($deals)->merge($discussions)->merge($notes)->values(),
+            'results' => $people->merge($companies)->merge($discussions)->merge($notes)->values(),
             'counts'  => [
                 'people'      => $people->count(),
                 'companies'   => $companies->count(),
-                'deals'       => $deals->count(),
                 'discussions' => $discussions->count(),
                 'notes'       => $notes->count(),
             ],

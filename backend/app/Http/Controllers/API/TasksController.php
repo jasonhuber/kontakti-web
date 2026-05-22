@@ -10,7 +10,7 @@ class TasksController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Task::orderBy('due_at');
+        $query = Task::where('user_id', auth()->id())->orderBy('due_at');
 
         if ($request->boolean('pending')) {
             $query->pending();
@@ -39,17 +39,22 @@ class TasksController extends Controller
             'priority'      => 'nullable|in:low,medium,high,urgent',
         ]);
 
+        $data['user_id'] = auth()->id();
         $task = Task::create($data);
         return response()->json($task, 201);
     }
 
     public function show(Task $task): JsonResponse
     {
+        abort_if($task->user_id !== auth()->id(), 403);
+
         return response()->json($task);
     }
 
     public function update(Request $request, Task $task): JsonResponse
     {
+        abort_if($task->user_id !== auth()->id(), 403);
+
         $data = $request->validate([
             'title'       => 'sometimes|string|max:255',
             'description' => 'sometimes|nullable|string',
@@ -63,12 +68,16 @@ class TasksController extends Controller
 
     public function destroy(Task $task): JsonResponse
     {
+        abort_if($task->user_id !== auth()->id(), 403);
+
         $task->delete();
         return response()->json(null, 204);
     }
 
     public function complete(Task $task): JsonResponse
     {
+        abort_if($task->user_id !== auth()->id(), 403);
+
         $task->complete();
 
         if ($task->taskable_id) {
@@ -86,6 +95,8 @@ class TasksController extends Controller
 
     public function reopen(Task $task): JsonResponse
     {
+        abort_if($task->user_id !== auth()->id(), 403);
+
         $task->reopen();
         return response()->json($task);
     }

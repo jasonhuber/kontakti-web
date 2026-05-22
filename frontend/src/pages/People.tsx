@@ -1,8 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { people, type RelationshipStrength } from '@/lib/api'
+import { people, type Person, type RelationshipStrength } from '@/lib/api'
 import { PersonCard } from '@/components/PersonCard'
-import { UserPlus, Loader2 } from 'lucide-react'
+import { PersonDetailModal } from './PersonDetailModal'
+import { AddPersonModal } from './AddPersonModal'
+import { UserPlus } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
@@ -15,10 +17,20 @@ const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
 
 export function PeoplePage() {
   const [strength, setStrength] = useState<RelationshipStrength | 'all'>('all')
+  const [searchInput, setSearchInput] = useState('')
   const [search, setSearch] = useState('')
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
+  const [showAddPerson, setShowAddPerson] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    debounceRef.current = setTimeout(() => setSearch(searchInput), 300)
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
+  }, [searchInput])
 
   const params: Record<string, string> = {}
-  if (strength !== 'all') params.strength = strength
+  if (strength !== 'all') params.relationship_strength = strength
   if (search) params.q = search
 
   const { data, isLoading, isError } = useQuery({
@@ -36,20 +48,23 @@ export function PeoplePage() {
             <p className="text-sm text-zinc-400 mt-0.5">{data.total} contacts</p>
           )}
         </div>
-        <button className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors">
+        <button
+          onClick={() => setShowAddPerson(true)}
+          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+        >
           <UserPlus className="w-4 h-4" />
           Add person
         </button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
         <input
           type="text"
           placeholder="Search people..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="flex-1 max-w-xs text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+          value={searchInput}
+          onChange={e => setSearchInput(e.target.value)}
+          className="flex-1 min-w-0 max-w-xs text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
         />
         <div className="flex items-center gap-1 bg-zinc-100 rounded-lg p-1">
           {STRENGTHS.map(s => (
@@ -71,9 +86,10 @@ export function PeoplePage() {
 
       {/* Content */}
       {isLoading && (
-        <div className="flex items-center justify-center py-24 text-zinc-400">
-          <Loader2 className="w-5 h-5 animate-spin mr-2" />
-          Loading...
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-28 bg-zinc-100 rounded-xl animate-pulse" />
+          ))}
         </div>
       )}
 
@@ -97,10 +113,18 @@ export function PeoplePage() {
             <PersonCard
               key={person.id}
               person={person}
-              onClick={() => console.log('open', person.id)}
+              onClick={() => setSelectedPerson(person)}
             />
           ))}
         </div>
+      )}
+
+      {selectedPerson && (
+        <PersonDetailModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+      )}
+
+      {showAddPerson && (
+        <AddPersonModal onClose={() => setShowAddPerson(false)} />
       )}
     </div>
   )

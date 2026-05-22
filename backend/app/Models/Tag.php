@@ -10,7 +10,7 @@ class Tag extends Model
 {
     use HasUuids;
 
-    protected $fillable = ['name', 'slug', 'color'];
+    protected $fillable = ['user_id', 'name', 'slug', 'color'];
 
     protected static function booted(): void
     {

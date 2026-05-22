@@ -81,7 +81,8 @@ if ! $FRONTEND_ONLY; then
   "
 fi
 
-# ── .htaccess ─────────────────────────────────────────────────────────────────
+# ── .htaccess (only on full or backend deploys) ───────────────────────────────
+if ! $FRONTEND_ONLY && ! $MARKETING_ONLY; then
 cat <<'HTACCESS' | "${SSH_CMD[@]}" "$USER@$HOST" "cat > ~/$REMOTE_PUBLIC/.htaccess"
 Options -MultiViews
 RewriteEngine On
@@ -96,6 +97,7 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^app/.*$ /app/index.html [L]
 HTACCESS
+fi
 
 echo ""
 echo "✅ Deployed. https://kontakti.app"

@@ -10,7 +10,8 @@ class CompaniesController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Company::withCount(['people', 'deals'])
+        $query = auth()->user()->companies()
+            ->withCount(['people', 'deals'])
             ->with('tags');
 
         if ($search = $request->get('q')) {
@@ -38,12 +39,15 @@ class CompaniesController extends Controller
             'metadata'     => 'nullable|array',
         ]);
 
+        $data['user_id'] = auth()->id();
         $company = Company::create($data);
         return response()->json($company->load('tags'), 201);
     }
 
     public function show(Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         return response()->json(
             $company->load(['tags', 'people' => fn($q) => $q->orderBy('last_name')])
                     ->loadCount(['people', 'deals'])
@@ -52,6 +56,8 @@ class CompaniesController extends Controller
 
     public function update(Request $request, Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         $data = $request->validate([
             'name'         => 'sometimes|string|max:255',
             'domain'       => "sometimes|nullable|string|unique:companies,domain,{$company->id}",
@@ -70,12 +76,16 @@ class CompaniesController extends Controller
 
     public function destroy(Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         $company->delete();
         return response()->json(null, 204);
     }
 
     public function people(Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         return response()->json(
             $company->people()->with('tags')->orderBy('last_name')->get()
         );
@@ -83,6 +93,8 @@ class CompaniesController extends Controller
 
     public function deals(Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         return response()->json(
             $company->deals()->with('contacts')->orderByDesc('created_at')->get()
         );
@@ -90,11 +102,14 @@ class CompaniesController extends Controller
 
     public function discussions(Company $company): JsonResponse
     {
+        abort_if($company->user_id !== auth()->id(), 403);
+
         // Discussions involving any person at this company
         return response()->json(
-            \App\Models\Discussion::whereHas('participants', fn($q) =>
-                $q->where('company_id', $company->id)
-            )->with(['participants', 'deal'])->orderByDesc('date')->get()
+            \App\Models\Discussion::where('user_id', auth()->id())
+                ->whereHas('participants', fn($q) =>
+                    $q->where('company_id', $company->id)
+                )->with(['participants', 'deal'])->orderByDesc('date')->get()
         );
     }
 }

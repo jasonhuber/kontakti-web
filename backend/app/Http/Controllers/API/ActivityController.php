@@ -10,7 +10,7 @@ class ActivityController extends Controller
 {
     public function feed(Request $request): JsonResponse
     {
-        $query = ActivityFeedItem::orderByDesc('created_at');
+        $query = ActivityFeedItem::where('user_id', auth()->id())->orderByDesc('created_at');
 
         if ($subjectType = $request->get('subject_type')) {
             $query->where('subject_type', $subjectType);

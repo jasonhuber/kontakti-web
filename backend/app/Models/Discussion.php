@@ -13,6 +13,7 @@ class Discussion extends Model
     use HasUuids, SoftDeletes;
 
     protected $fillable = [
+        'user_id',
         'title', 'date', 'type', 'summary', 'body', 'deal_id', 'metadata',
     ];
 

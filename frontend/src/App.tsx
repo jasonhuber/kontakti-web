@@ -1,27 +1,46 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { GlobalSearch } from '@/components/GlobalSearch'
+import { LoginPage } from '@/pages/LoginPage'
 import { PeoplePage } from '@/pages/People'
 import { CompaniesPage } from '@/pages/Companies'
-import { Search, Users, Building2, MessageSquare, Settings, Activity } from 'lucide-react'
+import { DiscussionsPage } from '@/pages/Discussions'
+import { ActivityFeedPage } from '@/pages/ActivityFeedPage'
+import { auth } from '@/lib/api'
+import { Search, Users, Building2, MessageSquare, Settings, Activity, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000 } },
 })
 
-type View = 'people' | 'companies' | 'interactions' | 'feed'
+type View = 'people' | 'companies' | 'discussions' | 'feed'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'people',       label: 'People',       icon: Users },
   { id: 'companies',    label: 'Companies',    icon: Building2 },
-  { id: 'interactions', label: 'Interactions', icon: MessageSquare },
+  { id: 'discussions',  label: 'Discussions',  icon: MessageSquare },
   { id: 'feed',         label: 'Activity',     icon: Activity },
 ]
 
-function AppShell() {
+function AppShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>('people')
   const [searchOpen, setSearchOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+
+  const handleSignOut = async () => {
+    try { await auth.logout() } catch { /* ignore */ }
+    localStorage.removeItem('kontakti_token')
+    onLogout()
+  }
+
+  // Close settings dropdown when clicking outside
+  useEffect(() => {
+    if (!settingsOpen) return
+    const handler = () => setSettingsOpen(false)
+    document.addEventListener('click', handler)
+    return () => document.removeEventListener('click', handler)
+  }, [settingsOpen])
 
   return (
     <div className="flex h-screen bg-zinc-50 font-sans">
@@ -65,17 +84,38 @@ function AppShell() {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-zinc-100">
-          <button className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:bg-zinc-50 transition-colors">
+        <div className="p-3 border-t border-zinc-100 relative">
+          <button
+            onClick={e => { e.stopPropagation(); setSettingsOpen(v => !v) }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-400 hover:bg-zinc-50 transition-colors"
+          >
             <Settings className="w-4 h-4" />
             Settings
           </button>
+
+          {settingsOpen && (
+            <div
+              className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-zinc-200 rounded-xl shadow-lg overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <button
+                onClick={handleSignOut}
+                className="w-full flex items-center gap-2.5 px-3 py-2.5 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <LogOut className="w-4 h-4" />
+                Sign out
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
-        <ViewRouter view={view} />
+        {view === 'people'      && <PeoplePage />}
+        {view === 'companies'   && <CompaniesPage />}
+        {view === 'discussions' && <DiscussionsPage />}
+        {view === 'feed'        && <ActivityFeedPage />}
       </main>
 
       <GlobalSearch
@@ -87,27 +127,24 @@ function AppShell() {
   )
 }
 
-function ViewRouter({ view }: { view: View }) {
-  if (view === 'people')       return <PeoplePage />
-  if (view === 'companies')    return <CompaniesPage />
-  if (view === 'interactions') return <Placeholder title="Interactions" />
-  if (view === 'feed')         return <Placeholder title="Activity" />
-  return null
-}
-
-function Placeholder({ title }: { title: string }) {
-  return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-xl font-semibold text-zinc-900">{title}</h1>
-      <p className="text-zinc-400 mt-1 text-sm">Coming soon.</p>
-    </div>
-  )
-}
-
 export default function App() {
+  const [token, setToken] = useState<string | null>(() => localStorage.getItem('kontakti_token'))
+
+  useEffect(() => {
+    const handler = () => setToken(null)
+    window.addEventListener('auth:logout', handler)
+    return () => window.removeEventListener('auth:logout', handler)
+  }, [])
+
+  const handleLogin = (newToken: string) => setToken(newToken)
+  const handleLogout = () => setToken(null)
+
   return (
     <QueryClientProvider client={queryClient}>
-      <AppShell />
+      {token
+        ? <AppShell onLogout={handleLogout} />
+        : <LoginPage onLogin={handleLogin} />
+      }
     </QueryClientProvider>
   )
 }
