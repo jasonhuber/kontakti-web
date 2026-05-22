@@ -8,21 +8,23 @@ import { CompaniesPage } from '@/pages/Companies'
 import { DiscussionsPage } from '@/pages/Discussions'
 import { ActivityFeedPage } from '@/pages/ActivityFeedPage'
 import { TasksPage } from '@/pages/TasksPage'
+import { NotesPage } from '@/pages/NotesPage'
 import { auth } from '@/lib/api'
-import { Search, Users, Building2, MessageSquare, Settings, Activity, LogOut, CheckSquare } from 'lucide-react'
+import { Search, Users, Building2, MessageSquare, Settings, Activity, LogOut, CheckSquare, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 60_000 } },
 })
 
-type View = 'people' | 'companies' | 'discussions' | 'tasks' | 'feed'
+type View = 'people' | 'companies' | 'discussions' | 'tasks' | 'notes' | 'feed'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'people',       label: 'People',       icon: Users },
   { id: 'companies',    label: 'Companies',    icon: Building2 },
   { id: 'discussions',  label: 'Discussions',  icon: MessageSquare },
   { id: 'tasks',        label: 'Tasks',        icon: CheckSquare },
+  { id: 'notes',        label: 'Notes',        icon: FileText },
   { id: 'feed',         label: 'Activity',     icon: Activity },
 ]
 
@@ -119,6 +121,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {view === 'companies'   && <CompaniesPage />}
         {view === 'discussions' && <DiscussionsPage />}
         {view === 'tasks'       && <TasksPage />}
+        {view === 'notes'       && <NotesPage />}
         {view === 'feed'        && <ActivityFeedPage />}
       </main>
 

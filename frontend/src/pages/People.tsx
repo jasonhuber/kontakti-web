@@ -4,7 +4,7 @@ import { people, type Person, type RelationshipStrength } from '@/lib/api'
 import { PersonCard } from '@/components/PersonCard'
 import { PersonDetailModal } from './PersonDetailModal'
 import { AddPersonModal } from './AddPersonModal'
-import { UserPlus } from 'lucide-react'
+import { UserPlus, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
@@ -21,6 +21,8 @@ export function PeoplePage() {
   const [search, setSearch] = useState('')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [showAddPerson, setShowAddPerson] = useState(false)
+  const [page, setPage] = useState(1)
+  const [allPeople, setAllPeople] = useState<Person[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
@@ -29,14 +31,32 @@ export function PeoplePage() {
     return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
   }, [searchInput])
 
-  const params: Record<string, string> = {}
+  // Reset pagination when filters change
+  useEffect(() => {
+    setPage(1)
+    setAllPeople([])
+  }, [strength, search])
+
+  const params: Record<string, string> = { page: String(page) }
   if (strength !== 'all') params.relationship_strength = strength
   if (search) params.q = search
 
-  const { data, isLoading, isError } = useQuery({
+  const { data, isLoading, isFetching, isError } = useQuery({
     queryKey: ['people', params],
     queryFn: () => people.list(params),
   })
+
+  // Accumulate pages
+  useEffect(() => {
+    if (!data) return
+    if (page === 1) {
+      setAllPeople(data.data)
+    } else {
+      setAllPeople(prev => [...prev, ...data.data])
+    }
+  }, [data, page])
+
+  const hasMore = data ? data.current_page < data.last_page : false
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -85,7 +105,7 @@ export function PeoplePage() {
       </div>
 
       {/* Content */}
-      {isLoading && (
+      {isLoading && allPeople.length === 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-28 bg-zinc-100 rounded-xl animate-pulse" />
@@ -99,7 +119,7 @@ export function PeoplePage() {
         </div>
       )}
 
-      {data && data.data.length === 0 && (
+      {!isLoading && allPeople.length === 0 && (
         <div className="text-center py-24">
           <p className="text-zinc-400 text-sm">
             {search || strength !== 'all' ? 'No contacts match that filter.' : 'No contacts yet — add your first person.'}
@@ -107,20 +127,38 @@ export function PeoplePage() {
         </div>
       )}
 
-      {data && data.data.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {data.data.map(person => (
-            <PersonCard
-              key={person.id}
-              person={person}
-              onClick={() => setSelectedPerson(person)}
-            />
-          ))}
-        </div>
+      {allPeople.length > 0 && (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {allPeople.map(person => (
+              <PersonCard
+                key={person.id}
+                person={person}
+                onClick={() => setSelectedPerson(person)}
+              />
+            ))}
+          </div>
+
+          {hasMore && (
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => setPage(p => p + 1)}
+                disabled={isFetching}
+                className="flex items-center gap-2 mx-auto text-sm text-zinc-500 hover:text-zinc-700 border border-zinc-200 hover:border-zinc-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                {isFetching ? 'Loading...' : 'Load more'}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {selectedPerson && (
-        <PersonDetailModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
+        <PersonDetailModal
+          person={selectedPerson}
+          onClose={() => setSelectedPerson(null)}
+        />
       )}
 
       {showAddPerson && (

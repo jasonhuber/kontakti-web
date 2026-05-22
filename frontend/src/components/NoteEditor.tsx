@@ -1,10 +1,11 @@
+import { useState } from 'react'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import Link from '@tiptap/extension-link'
 import Placeholder from '@tiptap/extension-placeholder'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { notes, type Note } from '@/lib/api'
-import { Save, Download } from 'lucide-react'
+import { Save, Download, Trash2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -12,20 +13,31 @@ interface Props {
   notableType?: string
   notableId?: string
   onSaved?: (note: Note) => void
+  onDelete?: (noteId: string) => void
   className?: string
 }
 
-export function NoteEditor({ note, notableType, notableId, onSaved, className }: Props) {
+export function NoteEditor({ note, notableType, notableId, onSaved, onDelete, className }: Props) {
   const queryClient = useQueryClient()
+  const [title, setTitle] = useState(note?.title ?? '')
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const saveMutation = useMutation({
-    mutationFn: (body: string) =>
+    mutationFn: ({ body, title }: { body: string; title?: string }) =>
       note
-        ? notes.update(note.id, { body })
-        : notes.create({ body, notable_type: notableType, notable_id: notableId }),
+        ? notes.update(note.id, { body, title: title || undefined })
+        : notes.create({ body, title: title || undefined, notable_type: notableType, notable_id: notableId }),
     onSuccess: (saved) => {
       queryClient.invalidateQueries({ queryKey: ['notes'] })
       onSaved?.(saved)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => notes.remove(id),
+    onSuccess: (_, id) => {
+      queryClient.invalidateQueries({ queryKey: ['notes'] })
+      onDelete?.(id)
     },
   })
 
@@ -37,7 +49,7 @@ export function NoteEditor({ note, notableType, notableId, onSaved, className }:
     extensions: [
       StarterKit,
       Link.configure({ openOnClick: false }),
-      Placeholder.configure({ placeholder: 'Start writing... (Markdown supported)' }),
+      Placeholder.configure({ placeholder: 'Start writing...' }),
     ],
     content: note?.body ?? '',
     editorProps: {
@@ -49,8 +61,7 @@ export function NoteEditor({ note, notableType, notableId, onSaved, className }:
 
   const handleSave = () => {
     if (!editor) return
-    const body = editor.getHTML()
-    saveMutation.mutate(body)
+    saveMutation.mutate({ body: editor.getHTML(), title })
   }
 
   const handleExport = () => {
@@ -59,6 +70,16 @@ export function NoteEditor({ note, notableType, notableId, onSaved, className }:
 
   return (
     <div className={cn('border border-zinc-200 rounded-xl overflow-hidden', className)}>
+      {/* Title */}
+      <input
+        type="text"
+        value={title}
+        onChange={e => setTitle(e.target.value)}
+        placeholder="Title (optional)"
+        className="w-full text-sm font-semibold text-zinc-900 border-b border-zinc-100 px-4 py-3 focus:outline-none focus:border-zinc-200 bg-white placeholder:font-normal placeholder:text-zinc-400"
+      />
+
+      {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-100 bg-zinc-50">
         <div className="flex items-center gap-1">
           <ToolbarButton
@@ -110,6 +131,28 @@ export function NoteEditor({ note, notableType, notableId, onSaved, className }:
               <Download className="w-3 h-3" />
               Obsidian
             </button>
+          )}
+          {note && onDelete && !confirmDelete && (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="text-zinc-400 hover:text-red-500 transition-colors"
+              title="Delete note"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {note && onDelete && confirmDelete && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-red-600">Delete?</span>
+              <button onClick={() => setConfirmDelete(false)} className="text-xs text-zinc-500 hover:text-zinc-700">Cancel</button>
+              <button
+                onClick={() => deleteMutation.mutate(note.id)}
+                disabled={deleteMutation.isPending}
+                className="text-xs text-red-600 font-medium hover:text-red-700"
+              >
+                Delete
+              </button>
+            </div>
           )}
           <button
             onClick={handleSave}

@@ -117,6 +117,7 @@ export const people = {
   timeline: (id: string) => get<TimelineEvent[]>(`/people/${id}/timeline`),
   discussions: (id: string) => get<Discussion[]>(`/people/${id}/discussions`),
   deals: (id: string) => get<Deal[]>(`/people/${id}/deals`),
+  notes: (id: string) => get<Paginated<Note>>('/notes', { notable_type: 'App\\Models\\Person', notable_id: id }),
   tasks: (id: string) => get<Task[]>(`/people/${id}/tasks`),
 }
 
@@ -130,6 +131,7 @@ export const companies = {
   people: (id: string) => get<Person[]>(`/companies/${id}/people`),
   deals: (id: string) => get<Deal[]>(`/companies/${id}/deals`),
   discussions: (id: string) => get<Discussion[]>(`/companies/${id}/discussions`),
+  notes: (id: string) => get<Paginated<Note>>('/notes', { notable_type: 'App\\Models\\Company', notable_id: id }),
 }
 
 // — Deals —
