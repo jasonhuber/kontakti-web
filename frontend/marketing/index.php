@@ -20,7 +20,10 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
   <meta name="twitter:title" content="Kontakti — Personal relationship intelligence.">
   <meta name="twitter:description" content="A personal CRM. Open source. Web, iOS, and Android.">
 
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23111'/><text x='50%' y='54%' font-family='system-ui,sans-serif' font-weight='700' font-size='18' fill='white' text-anchor='middle' dominant-baseline='middle'>K</text></svg>">
+  <meta name="theme-color" content="#111827">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="alternate icon" href="favicon.ico">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="stylesheet" href="style.css?v=<?php echo filemtime(__DIR__.'/style.css'); ?>">
 </head>
 <body>
@@ -28,10 +31,7 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
   <nav class="nav">
     <div class="container">
       <a href="/" class="nav-logo">
-        <svg width="26" height="26" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <rect width="32" height="32" rx="7" fill="#111"/>
-          <text x="50%" y="54%" font-family="system-ui,sans-serif" font-weight="700" font-size="18" fill="white" text-anchor="middle" dominant-baseline="middle">K</text>
-        </svg>
+        <img src="favicon.svg" alt="" width="26" height="26">
         Kontakti
       </a>
       <ul class="nav-links">
