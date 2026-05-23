@@ -26,6 +26,10 @@ class Person extends Model
         'next_followup_at'  => 'datetime',
     ];
 
+    protected $appends = [
+        'full_name',
+    ];
+
     // — Relationships —
 
     public function company(): BelongsTo

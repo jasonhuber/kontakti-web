@@ -15,6 +15,7 @@ class User extends Authenticatable
         'name',
         'username',
         'email',
+        'onboarded_at',
         'password',
     ];
 
@@ -27,8 +28,16 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
+            'onboarded_at'      => 'datetime',
             'password'          => 'hashed',
         ];
+    }
+
+    public function markOnboarded(): void
+    {
+        if ($this->onboarded_at === null) {
+            $this->forceFill(['onboarded_at' => now()])->save();
+        }
     }
 
     public function people()
