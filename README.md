@@ -117,11 +117,12 @@ The Vite dev server proxies `/api/*` to `localhost:8000`.
 
 ## API reference
 
-All endpoints require `Authorization: Bearer <token>` except login/register.
+All endpoints require `Authorization: Bearer <token>` except register, email/password login, and Google login.
 
 ```
 POST   /api/v1/auth/register
 POST   /api/v1/auth/login        → { token, user }
+POST   /api/v1/auth/google       { id_token } → { token, user }
 GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
 

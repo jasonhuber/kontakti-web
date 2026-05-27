@@ -1,8 +1,65 @@
-import { useState } from 'react'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { people, type Person, type RelationshipStrength } from '@/lib/api'
-import { X, Loader2 } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  people,
+  type Person, type RelationshipStrength,
+  type PersonEmail, type PersonPhone,
+} from '@/lib/api'
+import { X, Loader2, Instagram, Facebook, Twitter, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { EmailRows, PhoneRows } from '@/components/ContactRowsEditor'
+
+/** Seed the editor's email rows from a Person — merges legacy `email` if it
+ *  isn't already in the `emails` array, deduping by lowercased value. */
+function seedEmails(p: Person): PersonEmail[] {
+  const out: PersonEmail[] = []
+  const seen = new Set<string>()
+  for (const e of p.emails ?? []) {
+    const k = e.value.trim().toLowerCase()
+    if (!k || seen.has(k)) continue
+    seen.add(k)
+    out.push({ id: e.id, value: e.value, label: e.label, is_primary: e.is_primary })
+  }
+  if (p.email) {
+    const k = p.email.trim().toLowerCase()
+    if (k && !seen.has(k)) {
+      out.push({ value: p.email, label: 'personal', is_primary: out.length === 0 })
+    }
+  }
+  return out
+}
+
+function seedPhones(p: Person): PersonPhone[] {
+  const out: PersonPhone[] = []
+  const seen = new Set<string>()
+  const norm = (s: string) => {
+    const d = s.replace(/\D/g, '')
+    return d.length === 11 && d.startsWith('1') ? d.slice(1) : d
+  }
+  for (const ph of p.phones ?? []) {
+    const k = norm(ph.value)
+    if (!k || seen.has(k)) continue
+    seen.add(k)
+    out.push({ id: ph.id, value: ph.value, label: ph.label, is_primary: ph.is_primary })
+  }
+  if (p.phone) {
+    const k = norm(p.phone)
+    if (k && !seen.has(k)) {
+      out.push({ value: p.phone, label: 'mobile', is_primary: out.length === 0 })
+    }
+  }
+  return out
+}
+
+/** Extract handle from a possible URL or @handle string. */
+function normalizeHandle(input: string): string {
+  const trimmed = input.trim()
+  if (!trimmed) return ''
+  // Strip URL prefix.
+  const m = trimmed.match(/(?:instagram\.com|twitter\.com|x\.com|tiktok\.com)\/@?([A-Za-z0-9_.]+)/i)
+  if (m) return m[1]
+  return trimmed.replace(/^@+/, '')
+}
 
 interface Props {
   person: Person
@@ -20,8 +77,8 @@ export function EditPersonModal({ person, onClose }: Props) {
   const queryClient = useQueryClient()
   const [firstName, setFirstName] = useState(person.first_name)
   const [lastName, setLastName]   = useState(person.last_name)
-  const [email, setEmail]         = useState(person.email ?? '')
-  const [phone, setPhone]         = useState(person.phone ?? '')
+  const [emails, setEmails]       = useState<PersonEmail[]>(() => seedEmails(person))
+  const [phones, setPhones]       = useState<PersonPhone[]>(() => seedPhones(person))
   const [title, setTitle]         = useState(person.title ?? '')
   const [linkedinUrl, setLinkedinUrl] = useState(person.linkedin_url ?? '')
   const [strength, setStrength]   = useState<RelationshipStrength>(person.relationship_strength)
@@ -29,20 +86,97 @@ export function EditPersonModal({ person, onClose }: Props) {
     person.next_followup_at ? person.next_followup_at.slice(0, 10) : ''
   )
   const [notes, setNotes]         = useState(person.notes ?? '')
+
+  // Social handles
+  const [instagram, setInstagram] = useState(person.instagram_handle ?? '')
+  const [facebookUrl, setFacebookUrl] = useState(person.facebook_url ?? '')
+  const [twitter, setTwitter]     = useState(person.twitter_x_handle ?? '')
+  const [tiktok, setTiktok]       = useState(person.tiktok_handle ?? '')
+  const [whatsapp, setWhatsapp]   = useState(person.whatsapp_phone ?? '')
+
+  // Career
+  const [previousEmployersText, setPreviousEmployersText] = useState(
+    (person.previous_employers ?? []).join(', ')
+  )
+  const [howWeMet, setHowWeMet]   = useState(person.how_we_met ?? '')
+  const [introducedById, setIntroducedById] = useState(person.introduced_by_id ?? '')
+  const [introducedByQuery, setIntroducedByQuery] = useState('')
+
+  // Location
+  const [city, setCity]           = useState(person.city ?? '')
+  const [region, setRegion]       = useState(person.region ?? '')
+  const [country, setCountry]     = useState(person.country ?? '')
+
   const [error, setError]         = useState<string | null>(null)
 
+  // Introduced-by autocomplete
+  const { data: introCandidates } = useQuery({
+    queryKey: ['people', 'search-intro', introducedByQuery],
+    queryFn: () => people.list({ q: introducedByQuery, per_page: '6' }),
+    enabled: introducedByQuery.trim().length >= 2,
+  })
+  const [introResolved, setIntroResolved] = useState<Person | null>(null)
+  useEffect(() => {
+    if (introducedById && !introResolved && introducedById !== person.id) {
+      people.get(introducedById).then(setIntroResolved).catch(() => undefined)
+    }
+  }, [introducedById, introResolved, person.id])
+
   const mutation = useMutation({
-    mutationFn: () => people.update(person.id, {
+    mutationFn: () => {
+      // Strip empty rows, normalise primary flag (exactly one or none).
+      const cleanEmails = emails
+        .filter(e => e.value.trim() !== '')
+        .map(e => ({ id: e.id, value: e.value.trim(), label: e.label, is_primary: !!e.is_primary }))
+      const cleanPhones = phones
+        .filter(p => p.value.trim() !== '')
+        .map(p => ({ id: p.id, value: p.value.trim(), label: p.label, is_primary: !!p.is_primary }))
+
+      // Make sure the primary flag is sane: if none flagged, mark the first;
+      // if multiple flagged, keep just the first.
+      const ensurePrimary = <T extends { is_primary?: boolean }>(arr: T[]) => {
+        if (arr.length === 0) return arr
+        const firstPrimary = arr.findIndex(x => x.is_primary)
+        const keep = firstPrimary === -1 ? 0 : firstPrimary
+        return arr.map((x, i) => ({ ...x, is_primary: i === keep }))
+      }
+      const finalEmails = ensurePrimary(cleanEmails)
+      const finalPhones = ensurePrimary(cleanPhones)
+
+      // Mirror the primary value into the legacy single-column fields so list
+      // views, search, and any code still reading person.email/phone keep working.
+      const primaryEmail = finalEmails.find(e => e.is_primary)?.value ?? ''
+      const primaryPhone = finalPhones.find(p => p.is_primary)?.value ?? ''
+
+      return people.update(person.id, {
       first_name: firstName.trim(),
       last_name:  lastName.trim(),
-      email:      email.trim() || undefined,
-      phone:      phone.trim() || undefined,
+      email:      primaryEmail || undefined,
+      phone:      primaryPhone || undefined,
+      emails:     finalEmails,
+      phones:     finalPhones,
       title:      title.trim() || undefined,
       linkedin_url: linkedinUrl.trim() || undefined,
       relationship_strength: strength,
       next_followup_at: followup || undefined,
       notes: notes.trim() || undefined,
-    }),
+      // Social
+      instagram_handle:   normalizeHandle(instagram) || undefined,
+      facebook_url:       facebookUrl.trim() || undefined,
+      twitter_x_handle:   normalizeHandle(twitter) || undefined,
+      tiktok_handle:      normalizeHandle(tiktok) || undefined,
+      whatsapp_phone:     whatsapp.trim() || undefined,
+      // Career
+      previous_employers: previousEmployersText
+        .split(',').map(s => s.trim()).filter(Boolean),
+      how_we_met:         howWeMet.trim() || undefined,
+      introduced_by_id:   introducedById || undefined,
+      // Location
+      city:    city.trim() || undefined,
+      region:  region.trim() || undefined,
+      country: country.trim() || undefined,
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['people'] })
       queryClient.invalidateQueries({ queryKey: ['person', person.id] })
@@ -86,23 +220,14 @@ export function EditPersonModal({ person, onClose }: Props) {
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
-            </div>
+            <EmailRows emails={emails} onChange={setEmails} />
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Phone</label>
-                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                  className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
-                <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                  className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
-              </div>
+            <PhoneRows phones={phones} onChange={setPhones} />
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
+              <input type="text" value={title} onChange={e => setTitle(e.target.value)}
+                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
             </div>
 
             <div>
@@ -141,6 +266,181 @@ export function EditPersonModal({ person, onClose }: Props) {
                 className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none" />
             </div>
 
+            {/* Social */}
+            <div className="pt-3 border-t border-zinc-100">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Social</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
+                    <Instagram className="w-3 h-3" /> Instagram
+                  </label>
+                  <input
+                    type="text"
+                    value={instagram}
+                    onChange={e => setInstagram(e.target.value)}
+                    placeholder="@username or full profile URL"
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                  <p className="text-[11px] text-zinc-400 mt-1">Paste their username or full profile URL — we'll extract.</p>
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
+                    <Facebook className="w-3 h-3" /> Facebook
+                  </label>
+                  <input
+                    type="url"
+                    value={facebookUrl}
+                    onChange={e => setFacebookUrl(e.target.value)}
+                    placeholder="https://facebook.com/username"
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
+                      <Twitter className="w-3 h-3" /> Twitter / X
+                    </label>
+                    <input
+                      type="text"
+                      value={twitter}
+                      onChange={e => setTwitter(e.target.value)}
+                      placeholder="@username"
+                      className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">TikTok</label>
+                    <input
+                      type="text"
+                      value={tiktok}
+                      onChange={e => setTiktok(e.target.value)}
+                      placeholder="@username"
+                      className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
+                    <MessageCircle className="w-3 h-3" /> WhatsApp
+                  </label>
+                  <input
+                    type="tel"
+                    value={whatsapp}
+                    onChange={e => setWhatsapp(e.target.value)}
+                    placeholder="+1 555 555 0123"
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                  <p className="text-[11px] text-zinc-400 mt-1">Include country code, e.g. +1 for US.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Career */}
+            <div className="pt-3 border-t border-zinc-100">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Career & relationship</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Previous employers</label>
+                  <input
+                    type="text"
+                    value={previousEmployersText}
+                    onChange={e => setPreviousEmployersText(e.target.value)}
+                    placeholder="Stripe, Airbnb, Apple"
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                  <p className="text-[11px] text-zinc-400 mt-1">Comma-separated company names.</p>
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">How we met</label>
+                  <textarea
+                    value={howWeMet}
+                    onChange={e => setHowWeMet(e.target.value)}
+                    rows={2}
+                    placeholder="YC W22 batch dinner…"
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none"
+                  />
+                </div>
+                <div className="relative">
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Introduced by</label>
+                  {introducedById && introResolved ? (
+                    <div className="flex items-center gap-2 text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-zinc-50">
+                      <span className="flex-1 truncate text-zinc-900">{introResolved.full_name}</span>
+                      <button
+                        type="button"
+                        onClick={() => { setIntroducedById(''); setIntroResolved(null); setIntroducedByQuery('') }}
+                        className="text-xs text-zinc-400 hover:text-zinc-600"
+                      >Clear</button>
+                    </div>
+                  ) : (
+                    <>
+                      <input
+                        type="text"
+                        value={introducedByQuery}
+                        onChange={e => setIntroducedByQuery(e.target.value)}
+                        placeholder="Search contacts…"
+                        className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                      />
+                      {introducedByQuery.trim().length >= 2 && introCandidates && introCandidates.data.length > 0 && (
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                          {introCandidates.data
+                            .filter(p => p.id !== person.id)
+                            .map(p => (
+                              <button
+                                key={p.id}
+                                type="button"
+                                onClick={() => {
+                                  setIntroducedById(p.id)
+                                  setIntroResolved(p)
+                                  setIntroducedByQuery('')
+                                }}
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 border-b border-zinc-50 last:border-b-0"
+                              >
+                                <div className="text-zinc-900">{p.full_name}</div>
+                                {p.company?.name && <div className="text-xs text-zinc-400">{p.company.name}</div>}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Location */}
+            <div className="pt-3 border-t border-zinc-100">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Location</h3>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">City</label>
+                  <input
+                    type="text"
+                    value={city}
+                    onChange={e => setCity(e.target.value)}
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Region</label>
+                  <input
+                    type="text"
+                    value={region}
+                    onChange={e => setRegion(e.target.value)}
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Country</label>
+                  <input
+                    type="text"
+                    value={country}
+                    onChange={e => setCountry(e.target.value)}
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                  />
+                </div>
+              </div>
+            </div>
+
             {error && (
               <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
             )}
@@ -163,3 +463,4 @@ export function EditPersonModal({ person, onClose }: Props) {
     </>
   )
 }
+

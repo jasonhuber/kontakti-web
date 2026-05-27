@@ -2,12 +2,15 @@
 
 namespace App\Models;
 
+use App\Observers\DiscussionObserver;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, MorphMany};
+use Illuminate\Database\Eloquent\Relations\{BelongsTo, BelongsToMany, MorphMany, HasOne};
 use Illuminate\Database\Eloquent\Builder;
 
+#[ObservedBy([DiscussionObserver::class])]
 class Discussion extends Model
 {
     use HasUuids, SoftDeletes;
@@ -25,6 +28,11 @@ class Discussion extends Model
     public function deal(): BelongsTo
     {
         return $this->belongsTo(Deal::class);
+    }
+
+    public function emailThread(): HasOne
+    {
+        return $this->hasOne(EmailThread::class);
     }
 
     public function participants(): BelongsToMany

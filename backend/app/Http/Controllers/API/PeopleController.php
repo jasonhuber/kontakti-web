@@ -4,15 +4,20 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\{Person, Company, ActivityFeedItem};
+use App\Services\PersonContactSync;
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\Rule;
 
 class PeopleController extends Controller
 {
+    private const URL_LABELS = ['website', 'linkedin', 'twitter', 'facebook', 'instagram', 'other'];
+    private const ADDRESS_LABELS = ['home', 'work', 'other'];
+
     public function index(Request $request): JsonResponse
     {
         $query = auth()->user()->people()
-            ->with(['company', 'tags'])
+            ->with(['company', 'tags', 'emails', 'phones'])
             ->withCount(['discussions', 'deals', 'tasks' => fn($q) => $q->pending()]);
 
         if ($search = $request->get('q')) {
@@ -40,33 +45,42 @@ class PeopleController extends Controller
         return response()->json($people);
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(Request $request, PersonContactSync $sync): JsonResponse
     {
-        $data = $request->validate([
-            'first_name'            => 'required|string|max:100',
-            'last_name'             => 'required|string|max:100',
-            'email'                 => 'nullable|email|unique:people',
-            'phone'                 => 'nullable|string|max:50',
-            'linkedin_url'          => 'nullable|url|max:500',
-            'company_id'            => 'nullable|uuid|exists:companies,id',
-            'title'                 => 'nullable|string|max:200',
-            'relationship_strength' => 'nullable|in:cold,warm,hot,close',
-            'next_followup_at'      => 'nullable|date',
-            'notes'                 => 'nullable|string',
-            'metadata'              => 'nullable|array',
-            'tags'                  => 'nullable|array',
-        ]);
+        $this->normalizeSocialFields($request);
+        $data = $request->validate($this->validationRules(null, true));
 
-        $data['user_id'] = auth()->id();
+        $emails = $data['emails'] ?? null;
+        $phones = $data['phones'] ?? null;
+        $tags   = $data['tags'] ?? null;
+        unset($data['emails'], $data['phones'], $data['tags']);
+
+        $data['user_id']   = auth()->id();
+        $data['last_name'] = $data['last_name'] ?? '';
         $person = Person::create($data);
 
-        if (!empty($data['tags'])) {
-            $this->syncTags($person, $data['tags']);
+        // Persist multi-contact lists if provided; otherwise upsert single primary row
+        // from legacy fields so the new tables stay the source of truth.
+        if ($emails !== null) {
+            $sync->apply($person, $emails, null);
+        } elseif (!empty($data['email'])) {
+            $sync->apply($person, [['value' => $data['email'], 'label' => 'other', 'is_primary' => true]], null);
+        }
+
+        if ($phones !== null) {
+            $sync->apply($person, null, $phones);
+        } elseif (!empty($data['phone'])) {
+            $sync->apply($person, null, [['value' => $data['phone'], 'label' => 'mobile', 'is_primary' => true]]);
+        }
+
+        if (!empty($tags)) {
+            $this->syncTags($person, $tags);
         }
 
         ActivityFeedItem::log('person', $person->id, 'created');
+        auth()->user()->markOnboarded();
 
-        return response()->json($person->load(['company', 'tags']), 201);
+        return response()->json($person->load(['company', 'tags', 'emails', 'phones']), 201);
     }
 
     public function show(Person $person): JsonResponse
@@ -74,39 +88,162 @@ class PeopleController extends Controller
         abort_if($person->user_id !== auth()->id(), 403);
 
         return response()->json(
-            $person->load(['company', 'tags', 'tasks' => fn($q) => $q->pending()->orderBy('due_at')])
+            $person->load([
+                'company', 'tags', 'emails', 'phones',
+                'tasks' => fn($q) => $q->pending()->orderBy('due_at'),
+                'socialGroups',
+                'activity' => fn($q) => $q->limit(10),
+                'introducedBy',
+            ])
         );
     }
 
-    public function update(Request $request, Person $person): JsonResponse
+    public function update(Request $request, Person $person, PersonContactSync $sync): JsonResponse
     {
         abort_if($person->user_id !== auth()->id(), 403);
 
-        $data = $request->validate([
-            'first_name'            => 'sometimes|string|max:100',
-            'last_name'             => 'sometimes|string|max:100',
-            'email'                 => "sometimes|nullable|email|unique:people,email,{$person->id}",
-            'phone'                 => 'sometimes|nullable|string|max:50',
-            'linkedin_url'          => 'sometimes|nullable|url|max:500',
-            'company_id'            => 'sometimes|nullable|uuid|exists:companies,id',
-            'title'                 => 'sometimes|nullable|string|max:200',
-            'relationship_strength' => 'sometimes|in:cold,warm,hot,close',
-            'last_contacted_at'     => 'sometimes|nullable|date',
-            'next_followup_at'      => 'sometimes|nullable|date',
-            'notes'                 => 'sometimes|nullable|string',
-            'metadata'              => 'sometimes|nullable|array',
-            'tags'                  => 'sometimes|nullable|array',
-        ]);
+        $this->normalizeSocialFields($request);
+        $data = $request->validate($this->validationRules($person->id, false));
+
+        $emails = array_key_exists('emails', $data) ? $data['emails'] : null;
+        $phones = array_key_exists('phones', $data) ? $data['phones'] : null;
+        $tagsProvided = array_key_exists('tags', $data);
+        $tags = $tagsProvided ? ($data['tags'] ?? []) : null;
+        unset($data['emails'], $data['phones'], $data['tags']);
+
+        if (array_key_exists('last_name', $data)) {
+            $data['last_name'] = $data['last_name'] ?? '';
+        }
 
         $person->update($data);
 
-        if (array_key_exists('tags', $data)) {
-            $this->syncTags($person, $data['tags'] ?? []);
+        if ($emails !== null) {
+            $sync->apply($person, $emails, null);
+        } elseif (array_key_exists('email', $data)) {
+            $value = $data['email'];
+            if ($value) {
+                $sync->apply($person, [['value' => $value, 'label' => 'other', 'is_primary' => true]], null);
+            } else {
+                $sync->apply($person, [], null);
+            }
+        }
+
+        if ($phones !== null) {
+            $sync->apply($person, null, $phones);
+        } elseif (array_key_exists('phone', $data)) {
+            $value = $data['phone'];
+            if ($value) {
+                $sync->apply($person, null, [['value' => $value, 'label' => 'mobile', 'is_primary' => true]]);
+            } else {
+                $sync->apply($person, null, []);
+            }
+        }
+
+        if ($tagsProvided) {
+            $this->syncTags($person, $tags ?? []);
         }
 
         ActivityFeedItem::log('person', $person->id, 'updated');
 
-        return response()->json($person->load(['company', 'tags']));
+        return response()->json($person->load(['company', 'tags', 'emails', 'phones']));
+    }
+
+    /**
+     * Validation rules shared between store + update.
+     */
+    private function validationRules(?string $personId, bool $isStore): array
+    {
+        $req = $isStore ? 'required' : 'sometimes';
+        $opt = $isStore ? 'nullable' : 'sometimes|nullable';
+        $emailUnique = $personId
+            ? "sometimes|nullable|email|unique:people,email,{$personId}"
+            : 'nullable|email|unique:people';
+
+        return [
+            'first_name'            => "{$req}|string|max:100",
+            'last_name'             => "{$opt}|string|max:100",
+            'nickname'              => "{$opt}|string|max:100",
+            'email'                 => $emailUnique,
+            'phone'                 => "{$opt}|string|max:50",
+            'linkedin_url'          => "{$opt}|url|max:500",
+            'company_id'            => "{$opt}|uuid|exists:companies,id",
+            'title'                 => "{$opt}|string|max:200",
+            'job_department'        => "{$opt}|string|max:100",
+            'relationship_strength' => ($isStore ? 'nullable|' : 'sometimes|') . 'in:cold,warm,hot,close',
+            'last_contacted_at'     => "{$opt}|date",
+            'next_followup_at'      => "{$opt}|date",
+            'birthday'              => "{$opt}|date|before_or_equal:today",
+            'notes'                 => "{$opt}|string",
+            'device_note'           => "{$opt}|string",
+            'do_not_contact'        => ($isStore ? 'nullable|' : 'sometimes|') . 'boolean',
+            'do_not_contact_reason' => "{$opt}|string|max:500",
+            'metadata'              => "{$opt}|array",
+            'tags'                  => "{$opt}|array",
+
+            // Multi-contact arrays
+            'emails'                   => ($isStore ? 'nullable|' : 'sometimes|nullable|') . 'array',
+            'emails.*.value'           => 'required_with:emails|email|max:255',
+            'emails.*.label'           => ['nullable', Rule::in(['work', 'home', 'personal', 'other'])],
+            'emails.*.is_primary'      => 'nullable|boolean',
+
+            'phones'                   => ($isStore ? 'nullable|' : 'sometimes|nullable|') . 'array',
+            'phones.*.value'           => 'required_with:phones|string|max:50',
+            'phones.*.label'           => ['nullable', Rule::in(['mobile', 'work', 'home', 'other'])],
+            'phones.*.is_primary'      => 'nullable|boolean',
+
+            // Addresses + URLs JSON arrays
+            'addresses'                  => "{$opt}|array",
+            'addresses.*.label'          => ['nullable', Rule::in(self::ADDRESS_LABELS)],
+            'addresses.*.street'         => 'nullable|string|max:255',
+            'addresses.*.city'           => 'nullable|string|max:120',
+            'addresses.*.region'         => 'nullable|string|max:120',
+            'addresses.*.postal_code'    => 'nullable|string|max:30',
+            'addresses.*.country'        => 'nullable|string|max:120',
+
+            'urls'                       => "{$opt}|array",
+            'urls.*.label'               => ['nullable', Rule::in(self::URL_LABELS)],
+            'urls.*.value'               => 'required_with:urls|string|max:500',
+
+            // Social handles + relational metadata
+            'instagram_handle'           => "{$opt}|string|max:100",
+            'facebook_url'               => "{$opt}|string|max:500|regex:#^https?://(www\\.)?(facebook|fb)\\.com/.+#i",
+            'twitter_x_handle'           => "{$opt}|string|max:100",
+            'tiktok_handle'              => "{$opt}|string|max:100",
+            'whatsapp_phone'             => "{$opt}|string|max:50",
+            'previous_employers'         => "{$opt}|array",
+            'city'                       => "{$opt}|string|max:150",
+            'region'                     => "{$opt}|string|max:150",
+            'country'                    => "{$opt}|string|max:100",
+            'how_we_met'                 => "{$opt}|string",
+            'introduced_by_id'           => "{$opt}|uuid|exists:people,id",
+        ];
+    }
+
+    /**
+     * Strip leading "@" from social handles and digits-only normalize whatsapp_phone
+     * before validation so the rules see clean values.
+     */
+    private function normalizeSocialFields(Request $request): void
+    {
+        $strip = function (string $key) use ($request) {
+            if ($request->has($key)) {
+                $v = $request->input($key);
+                if (is_string($v)) {
+                    $request->merge([$key => ltrim(trim($v), '@')]);
+                }
+            }
+        };
+        $strip('instagram_handle');
+        $strip('twitter_x_handle');
+        $strip('tiktok_handle');
+
+        if ($request->has('whatsapp_phone')) {
+            $v = $request->input('whatsapp_phone');
+            if (is_string($v)) {
+                $digits = preg_replace('/\D+/', '', $v);
+                $request->merge(['whatsapp_phone' => $digits ?: null]);
+            }
+        }
     }
 
     public function destroy(Person $person): JsonResponse
@@ -122,7 +259,7 @@ class PeopleController extends Controller
         abort_if($person->user_id !== auth()->id(), 403);
 
         $discussions = $person->discussions()
-            ->with('deal')
+            ->with(['deal', 'emailThread'])
             ->orderByDesc('date')
             ->get()
             ->map(fn($d) => ['type' => 'discussion', 'date' => $d->date, 'data' => $d]);
@@ -138,9 +275,15 @@ class PeopleController extends Controller
             ->get()
             ->map(fn($t) => ['type' => 'task', 'date' => $t->completed_at, 'data' => $t]);
 
+        $reachOuts = $person->reachOutLogs()
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(fn($r) => ['type' => 'reach_out', 'date' => $r->created_at, 'data' => $r]);
+
         $timeline = $discussions
             ->merge($notes)
             ->merge($tasks)
+            ->merge($reachOuts)
             ->sortByDesc('date')
             ->values();
 
@@ -189,26 +332,36 @@ class PeopleController extends Controller
             'linkedin_url' => 'required|url|max:500',
         ]);
 
-        $apiKey = env('PROXYCURL_API_KEY');
+        $scraperUrl = rtrim(config('services.scraper.url', ''), '/');
+        if (empty($scraperUrl)) {
+            return response()->json([
+                'message' => 'LinkedIn enrichment service is not configured.',
+            ], 503);
+        }
 
-        $response = Http::withHeaders([
-            'Authorization' => "Bearer {$apiKey}",
-        ])->get('https://nubela.co/proxycurl/api/v2/linkedin', [
-            'url'       => $data['linkedin_url'],
-            'use_cache' => 'if-present',
-        ]);
+        $headers = [];
+        if ($key = config('services.scraper.key')) {
+            $headers['X-Api-Key'] = $key;
+        }
+
+        $response = Http::timeout(45)
+            ->withHeaders($headers)
+            ->post("{$scraperUrl}/api/enrich", [
+                'url' => $data['linkedin_url'],
+            ]);
 
         if ($response->failed()) {
             return response()->json([
-                'message' => 'Proxycurl lookup failed: ' . $response->status(),
+                'message' => 'LinkedIn enrichment failed: ' . $response->status(),
             ], 502);
         }
 
-        $p = $response->json();
+        // Proxy returns { person: {...}, source, model } — unpack the person key.
+        $raw = $response->json();
+        $p   = $raw['person'] ?? $raw;
 
-        // Resolve or create company from first experience entry
         $companyId = null;
-        $companyName = $p['experiences'][0]['company'] ?? null;
+        $companyName = data_get($p, 'company.name') ?? $p['company_name'] ?? null;
         if ($companyName) {
             $company = Company::firstOrCreate(
                 ['user_id' => auth()->id(), 'name' => $companyName],
@@ -217,25 +370,104 @@ class PeopleController extends Controller
             $companyId = $company->id;
         }
 
-        // Build linkedin_url from public_identifier if not already a full URL
-        $linkedinUrl = $data['linkedin_url'];
-        if (empty($linkedinUrl) && !empty($p['public_identifier'])) {
-            $linkedinUrl = "https://www.linkedin.com/in/{$p['public_identifier']}";
-        }
-
         $person = Person::create([
             'user_id'               => auth()->id(),
             'first_name'            => $p['first_name'] ?? 'Unknown',
             'last_name'             => $p['last_name'] ?? '',
-            'title'                 => $p['headline'] ?? null,
-            'avatar_url'            => $p['profile_pic_url'] ?? null,
-            'linkedin_url'          => $linkedinUrl,
+            'email'                 => $p['email'] ?? null,
+            'phone'                 => $p['phone'] ?? null,
+            'title'                 => $p['title'] ?? null,
+            'avatar_url'            => $p['avatar_url'] ?? null,
+            'linkedin_url'          => $p['linkedin_url'] ?? $data['linkedin_url'],
             'company_id'            => $companyId,
-            'notes'                 => $p['summary'] ?? null,
+            'notes'                 => $p['notes'] ?? null,
             'relationship_strength' => 'cold',
+            'metadata'              => [
+                'enrichment' => [
+                    'source'        => $raw['source'] ?? null,
+                    'model'         => $raw['model'] ?? null,
+                    'raw_text_used' => $raw['raw_text_used'] ?? null,
+                    'location'      => data_get($p, 'metadata.location'),
+                    'headline'      => data_get($p, 'metadata.headline'),
+                ],
+            ],
         ]);
+        auth()->user()->markOnboarded();
 
         return response()->json($person->load(['company', 'tags']), 201);
+    }
+
+    /**
+     * Backfill missing avatar_url for every person the user owns that has a
+     * linkedin_url but no avatar yet. Hits the enrichment proxy once per
+     * contact, saves just the avatar_url (cheap, not the full enrichment),
+     * skips on any error so one bad URL doesn't kill the batch.
+     *
+     * Body: { limit?: int (default 25, max 100) }
+     */
+    public function backfillAvatars(Request $request): JsonResponse
+    {
+        $data = $request->validate([
+            'limit' => 'nullable|integer|min:1|max:100',
+        ]);
+        $limit = (int) ($data['limit'] ?? 25);
+
+        $scraperUrl = rtrim(config('services.scraper.url', ''), '/');
+        if (empty($scraperUrl)) {
+            return response()->json([
+                'message' => 'LinkedIn enrichment service is not configured.',
+            ], 503);
+        }
+
+        $headers = [];
+        if ($key = config('services.scraper.key')) {
+            $headers['X-Api-Key'] = $key;
+        }
+
+        $candidates = Person::where('user_id', auth()->id())
+            ->whereNotNull('linkedin_url')
+            ->where(function ($q) {
+                $q->whereNull('avatar_url')->orWhere('avatar_url', '');
+            })
+            ->orderBy('updated_at')
+            ->limit($limit)
+            ->get(['id', 'linkedin_url']);
+
+        $updated = 0;
+        $failed  = 0;
+
+        foreach ($candidates as $person) {
+            try {
+                $response = Http::timeout(30)
+                    ->withHeaders($headers)
+                    ->post("{$scraperUrl}/api/enrich", ['url' => $person->linkedin_url]);
+
+                if ($response->failed()) { $failed++; continue; }
+
+                $raw = $response->json();
+                $p   = $raw['person'] ?? $raw;
+                $avatar = $p['avatar_url'] ?? null;
+                if (!$avatar) { $failed++; continue; }
+
+                Person::where('id', $person->id)->update(['avatar_url' => $avatar]);
+                $updated++;
+            } catch (\Throwable) {
+                $failed++;
+            }
+        }
+
+        $remaining = Person::where('user_id', auth()->id())
+            ->whereNotNull('linkedin_url')
+            ->where(function ($q) {
+                $q->whereNull('avatar_url')->orWhere('avatar_url', '');
+            })
+            ->count();
+
+        return response()->json([
+            'updated'   => $updated,
+            'failed'    => $failed,
+            'remaining' => $remaining,
+        ]);
     }
 
     private function syncTags(Person $person, array $tagNames): void

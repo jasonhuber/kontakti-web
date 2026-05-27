@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { people, type Person, type RelationshipStrength } from '@/lib/api'
 import { PersonCard } from '@/components/PersonCard'
 import { PersonDetailModal } from './PersonDetailModal'
 import { AddPersonModal } from './AddPersonModal'
-import { UserPlus, Loader2 } from 'lucide-react'
+import { UserPlus, Loader2, Image as ImageIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
@@ -16,8 +16,25 @@ const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
 ]
 
 export function PeoplePage() {
+  const qc = useQueryClient()
   const [strength, setStrength] = useState<RelationshipStrength | 'all'>('all')
   const [searchInput, setSearchInput] = useState('')
+  const [avatarMsg, setAvatarMsg] = useState<string | null>(null)
+
+  const backfillMut = useMutation({
+    mutationFn: () => people.backfillAvatars(25),
+    onSuccess: (r) => {
+      setAvatarMsg(
+        `Updated ${r.updated} avatar${r.updated === 1 ? '' : 's'}` +
+        (r.failed > 0 ? `, ${r.failed} failed` : '') +
+        (r.remaining > 0 ? ` — ${r.remaining} more to fetch (click again)` : ' — all done.')
+      )
+      qc.invalidateQueries({ queryKey: ['people'] })
+    },
+    onError: (e: unknown) => {
+      setAvatarMsg(e instanceof Error ? e.message : 'Avatar fetch failed')
+    },
+  })
   const [search, setSearch] = useState('')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [showAddPerson, setShowAddPerson] = useState(false)
@@ -68,14 +85,34 @@ export function PeoplePage() {
             <p className="text-sm text-zinc-400 mt-0.5">{data.total} contacts</p>
           )}
         </div>
-        <button
-          onClick={() => setShowAddPerson(true)}
-          className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
-        >
-          <UserPlus className="w-4 h-4" />
-          Add person
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => backfillMut.mutate()}
+            disabled={backfillMut.isPending}
+            title="Fetch LinkedIn profile photos for contacts with a LinkedIn URL but no avatar"
+            className="flex items-center gap-2 text-zinc-600 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
+          >
+            {backfillMut.isPending
+              ? <Loader2 className="w-4 h-4 animate-spin" />
+              : <ImageIcon className="w-4 h-4" />}
+            {backfillMut.isPending ? 'Fetching photos…' : 'Fetch LinkedIn photos'}
+          </button>
+          <button
+            onClick={() => setShowAddPerson(true)}
+            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium px-3 py-2 rounded-lg transition-colors"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add person
+          </button>
+        </div>
       </div>
+
+      {avatarMsg && (
+        <div className="mb-4 flex items-center justify-between gap-2 text-sm text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+          <span>{avatarMsg}</span>
+          <button onClick={() => setAvatarMsg(null)} className="text-zinc-400 hover:text-zinc-600 text-xs">Dismiss</button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex items-center gap-3 mb-6 flex-wrap">

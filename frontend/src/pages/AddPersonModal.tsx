@@ -1,8 +1,13 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { people, type RelationshipStrength } from '@/lib/api'
+import {
+  people,
+  type RelationshipStrength,
+  type PersonEmail, type PersonPhone,
+} from '@/lib/api'
 import { X, Loader2, Linkedin, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { EmailRows, PhoneRows } from '@/components/ContactRowsEditor'
 
 interface Props {
   onClose: () => void
@@ -30,8 +35,8 @@ export function AddPersonModal({ onClose }: Props) {
   // Manual form state
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
-  const [email, setEmail] = useState('')
-  const [phone, setPhone] = useState('')
+  const [emails, setEmails] = useState<PersonEmail[]>([])
+  const [phones, setPhones] = useState<PersonPhone[]>([])
   const [title, setTitle] = useState('')
   const [strength, setStrength] = useState<RelationshipStrength>('warm')
   const [notes, setNotes] = useState('')
@@ -51,16 +56,36 @@ export function AddPersonModal({ onClose }: Props) {
 
   // Manual create mutation
   const createMutation = useMutation({
-    mutationFn: () => people.create({
+    mutationFn: () => {
+      const cleanEmails = emails
+        .filter(e => e.value.trim() !== '')
+        .map(e => ({ value: e.value.trim(), label: e.label, is_primary: !!e.is_primary }))
+      const cleanPhones = phones
+        .filter(p => p.value.trim() !== '')
+        .map(p => ({ value: p.value.trim(), label: p.label, is_primary: !!p.is_primary }))
+
+      const ensurePrimary = <T extends { is_primary?: boolean }>(arr: T[]) => {
+        if (arr.length === 0) return arr
+        const firstPrimary = arr.findIndex(x => x.is_primary)
+        const keep = firstPrimary === -1 ? 0 : firstPrimary
+        return arr.map((x, i) => ({ ...x, is_primary: i === keep }))
+      }
+      const finalEmails = ensurePrimary(cleanEmails)
+      const finalPhones = ensurePrimary(cleanPhones)
+
+      return people.create({
       first_name:            firstName.trim(),
       last_name:             lastName.trim(),
-      email:                 email.trim() || undefined,
-      phone:                 phone.trim() || undefined,
+      email:                 finalEmails.find(e => e.is_primary)?.value,
+      phone:                 finalPhones.find(p => p.is_primary)?.value,
+      emails:                finalEmails,
+      phones:                finalPhones,
       title:                 title.trim() || undefined,
       linkedin_url:          linkedinUrl.trim() || undefined,
       relationship_strength: strength,
       notes:                 notes.trim() || undefined,
-    }),
+      })
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['people'] })
       onClose()
@@ -208,38 +233,19 @@ export function AddPersonModal({ onClose }: Props) {
                   </div>
                 </div>
 
+                <EmailRows emails={emails} onChange={setEmails} />
+
+                <PhoneRows phones={phones} onChange={setPhones} />
+
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Email</label>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
                   <input
-                    type="email"
-                    value={email}
-                    onChange={e => setEmail(e.target.value)}
-                    placeholder="jane@example.com"
+                    type="text"
+                    value={title}
+                    onChange={e => setTitle(e.target.value)}
+                    placeholder="CEO"
                     className={inputClass}
                   />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">Phone</label>
-                    <input
-                      type="tel"
-                      value={phone}
-                      onChange={e => setPhone(e.target.value)}
-                      placeholder="+1 555 000 0000"
-                      className={inputClass}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
-                    <input
-                      type="text"
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      placeholder="CEO"
-                      className={inputClass}
-                    />
-                  </div>
                 </div>
 
                 <div>

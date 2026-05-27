@@ -37,7 +37,7 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
       <ul class="nav-links">
         <li><a href="#what">What</a></li>
         <li><a href="#hosting">Hosting</a></li>
-        <li><a href="https://github.com/jasonhuber/kontakti-web" target="_blank" rel="noopener">GitHub</a></li>
+        <li><a href="#repos">GitHub</a></li>
         <li><a href="/app" class="nav-cta">Sign in</a></li>
       </ul>
     </div>

@@ -15,7 +15,11 @@ class User extends Authenticatable
         'name',
         'username',
         'email',
+        'google_id',
+        'avatar_url',
         'onboarded_at',
+        'last_nightly_sync_at',
+        'email_verified_at',
         'password',
     ];
 
@@ -27,9 +31,10 @@ class User extends Authenticatable
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
-            'onboarded_at'      => 'datetime',
-            'password'          => 'hashed',
+            'email_verified_at'    => 'datetime',
+            'onboarded_at'         => 'datetime',
+            'last_nightly_sync_at' => 'datetime',
+            'password'             => 'hashed',
         ];
     }
 
@@ -78,5 +83,25 @@ class User extends Authenticatable
     public function entityLinks()
     {
         return $this->hasMany(EntityLink::class);
+    }
+
+    public function googleAccounts()
+    {
+        return $this->hasMany(UserGoogleAccount::class);
+    }
+
+    public function primaryGoogleAccount()
+    {
+        return $this->hasOne(UserGoogleAccount::class)->where('is_primary', true);
+    }
+
+    public function pushTokens()
+    {
+        return $this->hasMany(PushToken::class);
+    }
+
+    public function emailThreads()
+    {
+        return $this->hasMany(EmailThread::class);
     }
 }

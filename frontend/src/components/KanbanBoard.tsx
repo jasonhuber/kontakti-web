@@ -14,6 +14,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { deals, type Deal, type DealStage } from '@/lib/api'
 import { DEAL_STAGE_LABELS, DEAL_STAGE_COLORS, formatCurrency, cn } from '@/lib/utils'
 import { GripVertical, Plus } from 'lucide-react'
+import { makeInitials } from './PersonCard'
 
 const STAGES: DealStage[] = ['discovery', 'qualified', 'proposal', 'negotiation', 'closed_won', 'closed_lost', 'on_hold']
 
@@ -68,7 +69,7 @@ function DealCard({ deal, isDragging }: DealCardProps) {
                     title={c.full_name}
                   >
                     <span className="text-[9px] font-medium text-indigo-600">
-                      {c.first_name[0]}{c.last_name[0]}
+                      {makeInitials(c.first_name, c.last_name, c.full_name)}
                     </span>
                   </div>
                 ))}
@@ -189,6 +190,8 @@ export function KanbanBoard({ columns, onAddDeal }: Props) {
         ))}
       </div>
 
+      {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
+      {/* @ts-ignore – DragOverlay types require style/className/transition/adjustScale but they have defaults */}
       <DragOverlay>
         {activeDeal && <DealCard deal={activeDeal} isDragging />}
       </DragOverlay>

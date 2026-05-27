@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { companies, type Company, type Person, type Note } from '@/lib/api'
 import { PersonCard } from '@/components/PersonCard'
@@ -6,7 +6,7 @@ import { PersonDetailModal } from './PersonDetailModal'
 import { EditCompanyModal } from './EditCompanyModal'
 import { NoteEditor } from '@/components/NoteEditor'
 import { formatRelativeDate, cn } from '@/lib/utils'
-import { X, Building2, Globe, Linkedin, Users, MessageSquare, Loader2, Pencil, Trash2, Plus } from 'lucide-react'
+import { X, Building2, Globe, Linkedin, Users, MessageSquare, Loader2, Pencil, Trash2, Plus, Copy } from 'lucide-react'
 
 const DISCUSSION_TYPE_ICONS: Record<string, string> = {
   call: '📞', meeting: '🤝', email: '✉️', message: '💬', event: '📅', other: '•',
@@ -58,6 +58,21 @@ export function CompanyDetailModal({ company, onClose }: Props) {
 
   const c = detail ?? company
   const noteList = notesData?.data ?? []
+
+  // Detect same-first-name clusters (potential duplicates within this company).
+  const dupGroups = useMemo(() => {
+    if (!people) return []
+    const byFirst: Record<string, Person[]> = {}
+    for (const p of people) {
+      const key = (p.first_name ?? '').trim().toLowerCase()
+      if (!key) continue
+      if (!byFirst[key]) byFirst[key] = []
+      byFirst[key].push(p)
+    }
+    return Object.values(byFirst).filter(g => g.length > 1)
+  }, [people])
+
+  const dupCount = dupGroups.reduce((acc, g) => acc + g.length, 0)
 
   function handleNoteSaved(saved: Note) {
     setSelectedNote(saved)
@@ -187,21 +202,41 @@ export function CompanyDetailModal({ company, onClose }: Props) {
 
               {/* People */}
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
-                  <Users className="w-3.5 h-3.5" />
-                  People
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                    <Users className="w-3.5 h-3.5" />
+                    People {people && people.length > 0 && <span className="normal-case font-normal text-zinc-400">({people.length})</span>}
+                  </div>
+                  {dupCount > 0 && (
+                    <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                      <Copy className="w-3 h-3" />
+                      {dupCount} possible duplicates
+                    </span>
+                  )}
                 </div>
                 {loadingPeople && <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />}
                 {!loadingPeople && (!people || people.length === 0) && (
                   <p className="text-sm text-zinc-400">No people linked.</p>
                 )}
-                {people && people.length > 0 && (
-                  <div className="space-y-0.5">
-                    {people.map(person => (
-                      <PersonCard key={person.id} person={person} compact onClick={() => setSelectedPerson(person)} />
-                    ))}
-                  </div>
-                )}
+                {people && people.length > 0 && (() => {
+                  // Build a set of IDs that are in a duplicate cluster for highlight.
+                  const dupIds = new Set(dupGroups.flatMap(g => g.map(p => p.id)))
+                  return (
+                    <div className="space-y-0.5">
+                      {people.map(person => (
+                        <div
+                          key={person.id}
+                          className={cn(
+                            'rounded-lg',
+                            dupIds.has(person.id) && 'ring-1 ring-amber-300 ring-offset-1',
+                          )}
+                        >
+                          <PersonCard person={person} compact onClick={() => setSelectedPerson(person)} />
+                        </div>
+                      ))}
+                    </div>
+                  )
+                })()}
               </div>
 
               {/* Discussions */}

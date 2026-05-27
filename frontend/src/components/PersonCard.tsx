@@ -1,6 +1,6 @@
 import { type Person, type RelationshipStrength } from '@/lib/api'
 import { STRENGTH_COLORS, STRENGTH_LABELS, formatRelativeDate, cn } from '@/lib/utils'
-import { Building2, Clock, Calendar } from 'lucide-react'
+import { Building2, Clock, Calendar, Ban } from 'lucide-react'
 
 interface Props {
   person: Person
@@ -13,7 +13,7 @@ const STRENGTH_DOTS: Record<RelationshipStrength, number> = {
 }
 
 export function PersonCard({ person, onClick, compact }: Props) {
-  const initials = `${person.first_name[0]}${person.last_name[0]}`
+  const initials = makeInitials(person.first_name, person.last_name, person.full_name)
 
   if (compact) {
     return (
@@ -22,8 +22,11 @@ export function PersonCard({ person, onClick, compact }: Props) {
         className="flex items-center gap-2 text-left hover:bg-zinc-50 rounded-lg px-2 py-1.5 transition-colors w-full"
       >
         <Avatar initials={initials} url={person.avatar_url} size="sm" />
-        <div className="min-w-0">
-          <div className="text-sm font-medium text-zinc-900 truncate">{person.full_name}</div>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-1.5">
+            <span className="text-sm font-medium text-zinc-900 truncate">{person.full_name}</span>
+            {person.do_not_contact && <DncBadge reason={person.do_not_contact_reason} compact />}
+          </div>
           {person.title && <div className="text-xs text-zinc-400 truncate">{person.title}</div>}
         </div>
       </button>
@@ -40,9 +43,12 @@ export function PersonCard({ person, onClick, compact }: Props) {
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
-            <span className="text-sm font-semibold text-zinc-900 truncate group-hover:text-indigo-600 transition-colors">
-              {person.full_name}
-            </span>
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="text-sm font-semibold text-zinc-900 truncate group-hover:text-indigo-600 transition-colors">
+                {person.full_name}
+              </span>
+              {person.do_not_contact && <DncBadge reason={person.do_not_contact_reason} />}
+            </div>
             <StrengthIndicator strength={person.relationship_strength} />
           </div>
 
@@ -94,9 +100,48 @@ export function PersonCard({ person, onClick, compact }: Props) {
 function Avatar({ initials, url, size }: { initials: string; url?: string; size: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-10 h-10 text-sm'
   return (
-    <div className={cn('rounded-full bg-indigo-100 flex items-center justify-center shrink-0 font-medium text-indigo-600', sizeClass)}>
-      {url ? <img src={url} alt={initials} className={cn('rounded-full object-cover', sizeClass)} /> : initials}
+    <div className={cn(
+      'rounded-full bg-indigo-100 flex items-center justify-center shrink-0 font-medium text-indigo-600 overflow-hidden',
+      sizeClass,
+    )}>
+      {url
+        ? <img src={url} alt={initials} className={cn('rounded-full object-cover', sizeClass)} />
+        : <span className="truncate px-1 select-none">{initials}</span>}
     </div>
+  )
+}
+
+/**
+ * Build a 1-2 character initials string from a person's name. Defensive against
+ * missing/empty first or last names — never produces "undefined" leakage.
+ */
+export function makeInitials(firstName?: string | null, lastName?: string | null, fullName?: string | null): string {
+  const first = (firstName ?? '').trim()
+  const last  = (lastName  ?? '').trim()
+  if (first && last) return (first[0] + last[0]).toUpperCase()
+  if (first)         return first.slice(0, 2).toUpperCase()
+  if (last)          return last.slice(0, 2).toUpperCase()
+  const full = (fullName ?? '').trim()
+  if (full) {
+    const parts = full.split(/\s+/)
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    return parts[0].slice(0, 2).toUpperCase()
+  }
+  return '?'
+}
+
+function DncBadge({ reason, compact }: { reason?: string; compact?: boolean }) {
+  return (
+    <span
+      title={reason ? `Do not contact — ${reason}` : 'Do not contact'}
+      className={cn(
+        'inline-flex items-center gap-0.5 rounded-full bg-red-50 text-red-700 border border-red-100 font-medium shrink-0',
+        compact ? 'text-[10px] px-1.5 py-0.5' : 'text-[10px] px-1.5 py-0.5',
+      )}
+    >
+      <Ban className="w-2.5 h-2.5" />
+      DNC
+    </span>
   )
 }
 

@@ -75,14 +75,15 @@ if ! $FRONTEND_ONLY; then
     "$ROOT/backend/" \
     "$USER@$HOST:~/$REMOTE_BACKEND/"
 
-  echo "→ Running composer install + artisan..."
+  echo "→ Running composer install + artisan (PHP 8.3)..."
   "${SSH_CMD[@]}" "$USER@$HOST" "
     cd ~/$REMOTE_BACKEND
-    composer install --no-dev --optimize-autoloader --no-interaction 2>&1 | tail -5
-    php artisan config:cache
-    php artisan route:cache
-    php artisan view:cache
-    php artisan migrate --force
+    PHP=/opt/alt/php83/usr/bin/php
+    \$PHP /usr/local/bin/composer install --no-dev --optimize-autoloader --no-interaction 2>&1 | tail -5
+    \$PHP artisan config:cache
+    \$PHP artisan route:cache
+    \$PHP artisan view:cache
+    \$PHP artisan migrate --force
     echo 'Backend deployed'
   "
 fi

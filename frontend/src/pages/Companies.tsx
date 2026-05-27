@@ -1,9 +1,47 @@
 import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { companies, type Company } from '@/lib/api'
+import { companies, type Company, type Person } from '@/lib/api'
 import { CompanyDetailModal } from './CompanyDetailModal'
 import { AddCompanyModal } from './AddCompanyModal'
-import { Building2, Users, Plus, Search, Loader2 } from 'lucide-react'
+import { Building2, Plus, Search, Loader2 } from 'lucide-react'
+
+const PEOPLE_PREVIEW = 4
+
+function CompanyPeopleList({ companyId }: { companyId: string }) {
+  const { data: people, isLoading } = useQuery<Person[]>({
+    queryKey: ['company-people', companyId],
+    queryFn: () => companies.people(companyId),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  if (isLoading) {
+    return <div className="mt-2 h-4 bg-zinc-100 rounded animate-pulse w-24" />
+  }
+
+  if (!people || people.length === 0) return null
+
+  const visible = people.slice(0, PEOPLE_PREVIEW)
+  const extra = people.length - PEOPLE_PREVIEW
+
+  return (
+    <div className="mt-2 space-y-0">
+      {visible.map((p: Person) => (
+        <div key={p.id} className="flex items-baseline gap-1 py-0.5">
+          <span className="text-xs text-zinc-700 truncate leading-snug">{p.full_name}</span>
+          {p.title && (
+            <>
+              <span className="text-xs text-zinc-300 shrink-0">·</span>
+              <span className="text-xs text-zinc-400 truncate leading-snug">{p.title}</span>
+            </>
+          )}
+        </div>
+      ))}
+      {extra > 0 && (
+        <div className="py-0.5 text-xs text-zinc-400">+{extra} more</div>
+      )}
+    </div>
+  )
+}
 
 export function CompaniesPage() {
   const [searchInput, setSearchInput] = useState('')
@@ -123,13 +161,10 @@ export function CompaniesPage() {
                   {company.industry && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">{company.industry}</span>
                   )}
-                  {company.people_count != null && (
-                    <div className="flex items-center gap-1 text-xs text-zinc-400">
-                      <Users className="w-3 h-3" />
-                      {company.people_count}
-                    </div>
-                  )}
                 </div>
+                {company.people_count != null && company.people_count > 0 && (
+                  <CompanyPeopleList companyId={company.id} />
+                )}
               </button>
             ))}
           </div>

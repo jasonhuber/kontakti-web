@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { auth } from '@/lib/api'
 
 interface Props {
@@ -6,11 +6,130 @@ interface Props {
   onRegisterClick?: () => void
 }
 
+interface GoogleCredentialResponse {
+  credential?: string
+}
+
+interface GoogleAccountsId {
+  initialize(config: {
+    client_id: string
+    callback: (response: GoogleCredentialResponse) => void
+    ux_mode?: 'popup' | 'redirect'
+  }): void
+  renderButton(parent: HTMLElement, options: {
+    theme?: 'outline' | 'filled_blue' | 'filled_black'
+    size?: 'large' | 'medium' | 'small'
+    text?: 'signin_with' | 'signup_with' | 'continue_with' | 'signin'
+    shape?: 'rectangular' | 'pill' | 'circle' | 'square'
+    logo_alignment?: 'left' | 'center'
+    width?: number
+  }): void
+}
+
+interface GoogleIdentityWindow {
+  google?: {
+    accounts?: {
+      id?: GoogleAccountsId
+    }
+  }
+}
+
+function getGoogleAccountsId() {
+  return (window as unknown as GoogleIdentityWindow).google?.accounts?.id
+}
+
+function loadGoogleIdentity(): Promise<GoogleAccountsId> {
+  return new Promise((resolve, reject) => {
+    const existingClient = getGoogleAccountsId()
+    if (existingClient) {
+      resolve(existingClient)
+      return
+    }
+
+    const existingScript = document.querySelector<HTMLScriptElement>('script[src*="accounts.google.com/gsi/client"]')
+    if (existingScript) {
+      existingScript.addEventListener('load', () => {
+        const client = getGoogleAccountsId()
+        client ? resolve(client) : reject(new Error('Google Sign-In did not initialize'))
+      }, { once: true })
+      existingScript.addEventListener('error', () => reject(new Error('Failed to load Google Sign-In')), { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => {
+      const client = getGoogleAccountsId()
+      client ? resolve(client) : reject(new Error('Google Sign-In did not initialize'))
+    }
+    script.onerror = () => reject(new Error('Failed to load Google Sign-In'))
+    document.head.appendChild(script)
+  })
+}
+
 export function LoginPage({ onLogin, onRegisterClick }: Props) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const googleButtonRef = useRef<HTMLDivElement>(null)
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
+  const handleGoogleCredential = useCallback(async (credential?: string) => {
+    if (!credential) {
+      setError('No Google credential received.')
+      return
+    }
+
+    setError(null)
+    setLoading(true)
+    try {
+      const { token } = await auth.loginWithGoogle(credential)
+      localStorage.setItem('kontakti_token', token)
+      onLogin(token)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Google login failed')
+    } finally {
+      setLoading(false)
+    }
+  }, [onLogin])
+
+  useEffect(() => {
+    if (!googleClientId) return
+
+    let cancelled = false
+
+    loadGoogleIdentity()
+      .then((googleId) => {
+        if (cancelled || !googleButtonRef.current) return
+
+        googleButtonRef.current.innerHTML = ''
+        googleId.initialize({
+          client_id: googleClientId,
+          callback: (response) => void handleGoogleCredential(response.credential),
+          ux_mode: 'popup',
+        })
+        googleId.renderButton(googleButtonRef.current, {
+          theme: 'outline',
+          size: 'large',
+          text: 'continue_with',
+          shape: 'rectangular',
+          logo_alignment: 'left',
+          width: googleButtonRef.current.offsetWidth || 304,
+        })
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : 'Failed to load Google Sign-In')
+        }
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [googleClientId, handleGoogleCredential])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,15 +147,22 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-start justify-center pt-32">
+    <div className="min-h-screen bg-zinc-50 flex items-start justify-center pt-20">
       <div className="w-full max-w-sm mx-auto px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4">
-            <span className="text-white text-xl font-bold">K</span>
-          </div>
+          <img
+            src="/favicon.svg"
+            alt="Kontakti"
+            className="w-24 h-24 mb-5 drop-shadow-sm"
+          />
           <h1 className="text-2xl font-bold text-zinc-900">Kontakti</h1>
-          <p className="text-sm text-zinc-500 mt-1">Personal relationship intelligence</p>
+          <p className="text-sm text-zinc-400 mt-1 mb-4">Personal relationship intelligence</p>
+          <blockquote className="text-center px-6">
+            <p className="text-sm text-zinc-500 italic leading-relaxed">
+              "Your network is your net worth — but only if you actually nurture it."
+            </p>
+          </blockquote>
         </div>
 
         {/* Card */}
@@ -95,20 +221,17 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
             <div className="flex-1 h-px bg-zinc-200" />
           </div>
 
-          <a
-            href="/api/v1/auth/google/redirect"
-            className="mt-4 flex items-center justify-center gap-2.5 w-full border border-zinc-200 rounded-lg py-2.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50 transition-colors"
-          >
-            <svg width="18" height="18" viewBox="0 0 18 18" xmlns="http://www.w3.org/2000/svg">
-              <g fill="none" fillRule="evenodd">
-                <path d="M17.64 9.205c0-.639-.057-1.252-.164-1.841H9v3.481h4.844a4.14 4.14 0 0 1-1.796 2.716v2.259h2.908c1.702-1.567 2.684-3.875 2.684-6.615z" fill="#4285F4"/>
-                <path d="M9 18c2.43 0 4.467-.806 5.956-2.18l-2.908-2.259c-.806.54-1.837.86-3.048.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332A8.997 8.997 0 0 0 9 18z" fill="#34A853"/>
-                <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
-                <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
-              </g>
-            </svg>
-            Continue with Google
-          </a>
+          <div className="mt-4 min-h-[40px]" ref={googleButtonRef}>
+            {!googleClientId && (
+              <button
+                type="button"
+                onClick={() => setError('Google Client ID not configured (VITE_GOOGLE_CLIENT_ID).')}
+                className="flex items-center justify-center w-full border border-zinc-200 rounded-lg py-2.5 text-sm font-medium text-zinc-500 bg-zinc-50"
+              >
+                Continue with Google
+              </button>
+            )}
+          </div>
         </div>
 
         {onRegisterClick && (
