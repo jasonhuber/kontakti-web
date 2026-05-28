@@ -32,6 +32,7 @@ Route::prefix('v1')->group(function () {
     Route::post('auth/register', [AuthController::class, 'register']);
     Route::post('auth/login', [AuthController::class, 'login']);
     Route::post('auth/google', [AuthController::class, 'google']);
+    Route::post('auth/qa-token', [AuthController::class, 'qaToken']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('auth/me', [AuthController::class, 'me']);
@@ -46,6 +47,11 @@ Route::prefix('v1')->group(function () {
         Route::post('people/backfill-avatars', [PeopleController::class, 'backfillAvatars']);
         Route::apiResource('people', PeopleController::class);
         Route::get('people/{person}/timeline', [PeopleController::class, 'timeline']);
+        // Photos (multiple per contact)
+        Route::get('people/{person}/photos', [\App\Http\Controllers\API\PersonPhotosController::class, 'index']);
+        Route::post('people/{person}/photos', [\App\Http\Controllers\API\PersonPhotosController::class, 'store']);
+        Route::delete('people/{person}/photos/{photo}', [\App\Http\Controllers\API\PersonPhotosController::class, 'destroy']);
+        Route::post('people/{person}/photos/{photo}/primary', [\App\Http\Controllers\API\PersonPhotosController::class, 'setPrimary']);
         Route::get('people/{person}/discussions', [PeopleController::class, 'discussions']);
         Route::get('people/{person}/deals', [PeopleController::class, 'deals']);
         Route::get('people/{person}/notes', [PeopleController::class, 'notes']);

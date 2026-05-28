@@ -93,9 +93,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       <aside className="w-56 bg-white border-r border-zinc-200 flex flex-col shrink-0">
         <div className="px-4 py-5 border-b border-zinc-100">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 flex items-center justify-center">
-              <span className="text-white text-xs font-bold">K</span>
-            </div>
+            <img src="/favicon.svg" alt="Kontakti" className="w-7 h-7" />
             <span className="font-semibold text-zinc-900 text-sm">Kontakti</span>
           </div>
         </div>

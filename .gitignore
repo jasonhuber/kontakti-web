@@ -19,3 +19,7 @@ frontend/.env.production
 # macOS
 .DS_Store
 **/.DS_Store
+
+# QA credentials — never commit
+.qa-token
+.qa-secret-tmp

@@ -175,9 +175,7 @@ function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => v
   return (
     <div className="text-center space-y-8">
       <div className="flex flex-col items-center gap-5">
-        <div className="w-20 h-20 rounded-3xl bg-indigo-600 flex items-center justify-center">
-          <span className="text-white text-4xl font-bold">K</span>
-        </div>
+        <img src="/favicon.svg" alt="Kontakti" className="w-24 h-24 drop-shadow-sm" />
         <div className="space-y-2">
           <h1 className="text-3xl font-bold text-zinc-900">Welcome to Kontakti</h1>
           <p className="text-zinc-500 text-sm leading-relaxed">

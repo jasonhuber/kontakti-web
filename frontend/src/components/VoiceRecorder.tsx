@@ -13,6 +13,10 @@ type State =
 interface Props {
   personId?: string
   context?: string
+  /** Specific mic to record from. If omitted, browser default. */
+  deviceId?: string
+  /** Re-open the mic picker. Called from the inline "Switch microphone" button. */
+  onSwitchDevice?: () => void
   onComplete: (result: VoiceCaptureResult) => void
   onCancel?: () => void
 }
@@ -38,7 +42,7 @@ function formatElapsed(ms: number): string {
   return `${m}:${s}`
 }
 
-export function VoiceRecorder({ personId, context, onComplete, onCancel }: Props) {
+export function VoiceRecorder({ personId, context, deviceId, onSwitchDevice, onComplete, onCancel }: Props) {
   const [state, setState] = useState<State>({ kind: 'idle' })
   const [elapsed, setElapsed] = useState(0)
   const [level, setLevel] = useState(0)
@@ -71,7 +75,23 @@ export function VoiceRecorder({ personId, context, onComplete, onCancel }: Props
   const start = useCallback(async () => {
     setState({ kind: 'requesting' })
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      // Use the chosen device if provided. If `exact` fails (USB mic unplugged
+      // since selection) the browser throws OverconstrainedError — fall back to
+      // the system default so the recording still works.
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: deviceId ? { deviceId: { exact: deviceId } } : true,
+        })
+      } catch (e) {
+        if (deviceId && e instanceof Error && (e.name === 'OverconstrainedError' || e.name === 'NotFoundError')) {
+          // Selected device is gone — clear it and retry with default.
+          try { localStorage.removeItem('kontakti_mic_device_id') } catch { /* ignore */ }
+          stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+        } else {
+          throw e
+        }
+      }
       if (cancelledRef.current) { stream.getTracks().forEach(t => t.stop()); return }
       streamRef.current = stream
 
@@ -119,7 +139,7 @@ export function VoiceRecorder({ personId, context, onComplete, onCancel }: Props
         : e instanceof Error ? e.message : 'Could not start recording.'
       setState({ kind: 'error', message: msg, recoverable: true })
     }
-  }, [])
+  }, [deviceId])
 
   // Auto-start on mount.
   useEffect(() => { start() }, [start])
@@ -208,6 +228,14 @@ export function VoiceRecorder({ personId, context, onComplete, onCancel }: Props
               Stop & transcribe
             </button>
           </div>
+          {onSwitchDevice && (
+            <button
+              onClick={() => { cleanup(); onSwitchDevice() }}
+              className="text-xs text-zinc-400 hover:text-indigo-600 transition-colors"
+            >
+              Switch microphone
+            </button>
+          )}
         </div>
       )}
 
@@ -242,6 +270,14 @@ export function VoiceRecorder({ personId, context, onComplete, onCancel }: Props
               </button>
             )}
           </div>
+          {onSwitchDevice && (
+            <button
+              onClick={() => { cleanup(); onSwitchDevice() }}
+              className="text-xs text-zinc-400 hover:text-indigo-600 transition-colors"
+            >
+              Switch microphone
+            </button>
+          )}
         </div>
       )}
 

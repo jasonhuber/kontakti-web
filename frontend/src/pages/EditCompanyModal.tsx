@@ -44,11 +44,21 @@ export function EditCompanyModal({ company, onClose }: Props) {
     mutation.mutate()
   }
 
+  // Backdrop click closes this modal only. We stopPropagation so the click
+  // does not bubble to the underlying CompanyDetailModal backdrop (z-40) and
+  // close that too. Arbitrary z-values: Tailwind's default scale tops out at
+  // z-50, which CompanyDetailModal already uses for its panel — we need to sit
+  // strictly above it. (See InlineDrawer.tsx for the same z-[60]/z-[70] pattern.)
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClose()
+  }
+
   return (
     <>
-      <div className="fixed inset-0 z-60 bg-black/40" onClick={onClose} />
+      <div className="fixed inset-0 z-[60] bg-black/40" onClick={handleBackdropClick} />
 
-      <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
             <h2 className="text-base font-semibold text-zinc-900">Edit {company.name}</h2>

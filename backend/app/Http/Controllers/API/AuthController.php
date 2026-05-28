@@ -133,6 +133,43 @@ class AuthController extends Controller
         return response()->json(['message' => 'Logged out.']);
     }
 
+    /**
+     * Issue a long-lived Sanctum token for the configured QA user. Gated by a
+     * shared secret in `X-QA-Secret` — the secret + the target user email
+     * come from .env (`QA_TOKEN_SECRET`, `QA_USER_EMAIL`). Disabled unless
+     * `QA_TOKEN_ENABLED=true`.
+     *
+     * Intended for automated end-to-end QA only. Token is named "qa-agent" so
+     * it's easy to revoke en-masse later.
+     */
+    public function qaToken(Request $request): JsonResponse
+    {
+        if (!config('services.qa.enabled')) {
+            return response()->json(['message' => 'QA token endpoint disabled.'], 404);
+        }
+
+        $expected = (string) config('services.qa.secret', '');
+        $provided = (string) $request->header('X-QA-Secret', '');
+        if ($expected === '' || !hash_equals($expected, $provided)) {
+            return response()->json(['message' => 'Invalid QA secret.'], 401);
+        }
+
+        $email = (string) config('services.qa.user_email', '');
+        $user  = $email !== '' ? User::where('email', $email)->first() : null;
+        if (!$user) {
+            return response()->json(['message' => 'QA user not configured.'], 500);
+        }
+
+        // Prune any stale qa-agent tokens so we don't accumulate them.
+        $user->tokens()->where('name', 'qa-agent')->delete();
+        $token = $user->createToken('qa-agent')->plainTextToken;
+
+        return response()->json([
+            'token' => $token,
+            'user'  => $this->userPayload($user),
+        ]);
+    }
+
     public function me(Request $request): JsonResponse
     {
         return response()->json($this->userPayload($request->user()));

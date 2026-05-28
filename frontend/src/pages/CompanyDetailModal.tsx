@@ -86,9 +86,21 @@ export function CompanyDetailModal({ company, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ['company-notes', company.id] })
   }
 
+  // Belt-and-suspenders: ignore backdrop clicks while a nested modal
+  // (selected person / edit company) is open, so a stray bubbled click can't
+  // close this panel out from under the child. The child modals also
+  // stopPropagation on their own backdrop clicks. EditCompanyModal stacks
+  // above us via z-[60]/z-[70] (arbitrary Tailwind values).
+  const backdropDisabled = !!selectedPerson || editing
+  const handleBackdropClick = () => {
+    if (backdropDisabled) return
+    onClose()
+  }
+
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      {/* Backdrop (z-40 / panel z-50 — Tailwind default scale) */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={handleBackdropClick} />
 
       <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
         {/* Header */}

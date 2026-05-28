@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\{Discussion, Person, Task};
+use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\{JsonResponse, Request};
 use Illuminate\Support\Facades\{Http, Log, Storage};
 use Illuminate\Support\Str;
@@ -36,9 +37,10 @@ class VoiceController extends Controller
         $base = rtrim((string) config('services.scraper.url', ''), '/');
         if ($base === '') {
             return response()->json([
-                'error' => 'upstream_unavailable',
+                'error'       => 'upstream_not_configured',
+                'message'     => 'Transcription service is not configured.',
                 'remediation' => 'Enrichment proxy URL not configured.',
-            ], 502);
+            ], 503);
         }
         $headers = [];
         if ($key = config('services.scraper.key')) {
@@ -65,18 +67,35 @@ class VoiceController extends Controller
         $tmpPath = Storage::disk('local')->path($tmpName);
 
         try {
-            // 1. Transcribe
-            $transcribeResponse = Http::withHeaders($headers)
-                ->timeout(120)
-                ->attach('audio', fopen($tmpPath, 'r'), $uploaded->getClientOriginalName())
-                ->post($base . '/api/transcribe');
+            // 1. Transcribe — guard against the upstream being down. Cloudflare
+            // intercepts 502 responses from origin and replaces the body with a
+            // plaintext "error code: 502" page, so the SPA can't surface a
+            // useful message. Use 503 (Service Unavailable) instead — Cloudflare
+            // passes 503 bodies through unchanged.
+            try {
+                $transcribeResponse = Http::withHeaders($headers)
+                    ->timeout(120)
+                    ->attach('audio', fopen($tmpPath, 'r'), $uploaded->getClientOriginalName())
+                    ->post($base . '/api/transcribe');
+            } catch (ConnectionException $e) {
+                Log::warning('Voice transcribe connect failed', ['err' => $e->getMessage()]);
+                return response()->json([
+                    'error'   => 'upstream_unavailable',
+                    'step'    => 'transcribe',
+                    'message' => 'Transcription service unreachable: ' . $e->getMessage(),
+                ], 503);
+            }
 
             if (!$transcribeResponse->ok()) {
                 Log::warning('Voice transcribe non-2xx', [
                     'status' => $transcribeResponse->status(),
-                    'body'   => $transcribeResponse->body(),
+                    'body'   => Str::limit($transcribeResponse->body(), 500),
                 ]);
-                return response()->json(['error' => 'upstream_unavailable', 'step' => 'transcribe'], 502);
+                return response()->json([
+                    'error'   => 'upstream_unavailable',
+                    'step'    => 'transcribe',
+                    'message' => 'Transcription service returned ' . $transcribeResponse->status() . '. Try again in a moment.',
+                ], 503);
             }
 
             $tx = $transcribeResponse->json();
@@ -107,19 +126,24 @@ class VoiceController extends Controller
                 ->values()
                 ->all();
 
-            $extractResponse = Http::withHeaders($headers)
-                ->timeout(60)
-                ->post($base . '/api/extract-entities', [
-                    'transcript'    => $transcript,
-                    'user_id'       => $user->id,
-                    'contacts_hint' => $contactsHint,
-                    'context'       => $validated['context'] ?? null,
-                ]);
+            try {
+                $extractResponse = Http::withHeaders($headers)
+                    ->timeout(60)
+                    ->post($base . '/api/extract-entities', [
+                        'transcript'    => $transcript,
+                        'user_id'       => $user->id,
+                        'contacts_hint' => $contactsHint,
+                        'context'       => $validated['context'] ?? null,
+                    ]);
+            } catch (ConnectionException $e) {
+                Log::warning('Voice extract connect failed', ['err' => $e->getMessage()]);
+                $extractResponse = null;
+            }
 
-            if (!$extractResponse->ok()) {
+            if (!$extractResponse || !$extractResponse->ok()) {
                 Log::warning('Voice extract non-2xx', [
-                    'status' => $extractResponse->status(),
-                    'body'   => $extractResponse->body(),
+                    'status' => $extractResponse?->status(),
+                    'body'   => $extractResponse ? Str::limit($extractResponse->body(), 500) : '(connect failed)',
                 ]);
                 return response()->json([
                     'transcript'  => $transcript,

@@ -91,6 +91,11 @@ class Person extends Model
         return $this->hasMany(PersonPhone::class);
     }
 
+    public function photos(): HasMany
+    {
+        return $this->hasMany(PersonPhoto::class)->orderBy('sort_order')->orderBy('created_at');
+    }
+
     public function socialGroups(): BelongsToMany
     {
         return $this->belongsToMany(SocialGroup::class, 'social_group_members')

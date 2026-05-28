@@ -36,9 +36,7 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
       <div className="w-full max-w-sm mx-auto px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center mb-4">
-            <span className="text-white text-xl font-bold">K</span>
-          </div>
+          <img src="/favicon.svg" alt="Kontakti" className="w-16 h-16 mb-4 drop-shadow-sm" />
           <h1 className="text-2xl font-bold text-zinc-900">Create your account</h1>
           <p className="text-sm text-zinc-500 mt-1">Personal relationship intelligence</p>
         </div>

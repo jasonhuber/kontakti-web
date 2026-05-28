@@ -38,8 +38,10 @@ export function GroupImportWizard({ onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-60 bg-black/50" onClick={onClose} />
-      <div className="fixed inset-0 z-70 flex items-stretch sm:items-center justify-center sm:p-4">
+      {/* z-[60]/z-[70] (arbitrary) — Tailwind's default scale stops at z-50;
+          bogus z-60/z-70 classes emit no CSS and silently fall back. */}
+      <div className="fixed inset-0 z-[60] bg-black/50" onClick={onClose} />
+      <div className="fixed inset-0 z-[70] flex items-stretch sm:items-center justify-center sm:p-4">
         <div className="bg-white sm:rounded-2xl shadow-2xl w-full sm:max-w-2xl flex flex-col h-full sm:max-h-[90vh] sm:h-auto">
           {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-100 shrink-0">

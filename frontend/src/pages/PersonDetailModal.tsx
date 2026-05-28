@@ -19,6 +19,7 @@ import { EditPersonModal } from './EditPersonModal'
 import { NoteEditor } from '@/components/NoteEditor'
 import { VoiceCaptureFlow } from '@/components/VoiceCaptureFlow'
 import { makeInitials } from '@/components/PersonCard'
+import { PhotoGallery } from '@/components/PhotoGallery'
 
 // ── Interaction feed helpers ─────────────────────────────────────────────────
 
@@ -166,10 +167,21 @@ export function PersonDetailModal({ person, onClose }: Props) {
     queryClient.invalidateQueries({ queryKey: ['person-notes', person.id] })
   }
 
+  // Belt-and-suspenders: ignore backdrop clicks while a nested modal (edit /
+  // voice) is open, so a stray bubbled click can't close this panel out from
+  // under the child. The child modals also stopPropagation on their own
+  // backdrop clicks. The child stacks above us via z-[60]/z-[70] (arbitrary
+  // Tailwind values — see EditPersonModal).
+  const backdropDisabled = editing || voiceOpen
+  const handleBackdropClick = () => {
+    if (backdropDisabled) return
+    onClose()
+  }
+
   return (
     <>
-      {/* Backdrop */}
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
+      {/* Backdrop (z-40 / panel z-50 — Tailwind default scale) */}
+      <div className="fixed inset-0 z-40 bg-black/40" onClick={handleBackdropClick} />
 
       {/* Panel */}
       <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
@@ -273,6 +285,9 @@ export function PersonDetailModal({ person, onClose }: Props) {
                   Voice memo
                 </button>
               </div>
+
+              {/* Photo gallery — primary + all attached photos */}
+              <PhotoGallery personId={p.id} editable={false} />
 
               {/* Contact rows — every email + every phone with its label.
                   Legacy single-column values are merged into the lists so we
@@ -569,7 +584,11 @@ function ActivityPanel({
     !!person.instagram_handle || !!person.facebook_url ||
     !!person.twitter_x_handle || !!person.tiktok_handle ||
     !!person.linkedin_url
-  const list = items ?? []
+  // Defensive: tolerate either a bare array or a paginator { data: [...] }
+  // shape, so a future schema drift can't take down the detail modal.
+  const list: SocialActivity[] = Array.isArray(items)
+    ? items
+    : (items as unknown as { data?: SocialActivity[] })?.data ?? []
 
   return (
     <div>

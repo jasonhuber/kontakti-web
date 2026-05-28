@@ -38,6 +38,17 @@ export interface PersonURL {
   label: UrlLabel
   value: string
 }
+export type PhotoSource = 'manual_upload' | 'linkedin' | 'device_contact' | 'paste' | 'other'
+export interface PersonPhoto {
+  id: string
+  person_id: string
+  url: string
+  source: PhotoSource
+  is_primary: boolean
+  sort_order: number
+  created_at: string
+  updated_at: string
+}
 export interface Company {
   id: string; name: string; domain?: string; logo_url?: string
   industry?: string; size_range?: string; linkedin_url?: string; website?: string
@@ -60,6 +71,7 @@ export interface Person {
   do_not_contact_reason?: string
   emails?: PersonEmail[]
   phones?: PersonPhone[]
+  photos?: PersonPhoto[]
   addresses?: Address[]
   urls?: PersonURL[]
   metadata?: Record<string, unknown>
@@ -303,6 +315,33 @@ export const people = {
   listNotes: (id: string) => get<Paginated<Note>>('/notes', { notable_type: 'App\\Models\\Person', notable_id: id }),
   tasks: (id: string) => get<Task[]>(`/people/${id}/tasks`),
   listTasks: (id: string) => get<Task[]>(`/people/${id}/tasks`),
+  // Photos
+  listPhotos: (id: string) => get<PersonPhoto[]>(`/people/${id}/photos`),
+  uploadPhoto: async (id: string, file: File, source: PhotoSource = 'manual_upload'): Promise<PersonPhoto> => {
+    const token = localStorage.getItem('kontakti_token')
+    const form = new FormData()
+    form.append('file', file)
+    form.append('source', source)
+    const res = await fetch(`/api/v1/people/${id}/photos`, {
+      method: 'POST',
+      headers: {
+        Accept: 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: form,
+    })
+    if (!res.ok) {
+      const msg = await res.text().catch(() => res.statusText)
+      throw new Error(`Upload failed: ${res.status} ${msg || res.statusText}`)
+    }
+    return res.json()
+  },
+  uploadPhotoData: (id: string, dataUrl: string, source: PhotoSource = 'paste') =>
+    post<PersonPhoto>(`/people/${id}/photos`, { data: dataUrl, source }),
+  removePhoto: (id: string, photoId: string) =>
+    del(`/people/${id}/photos/${photoId}`),
+  setPrimaryPhoto: (id: string, photoId: string) =>
+    post<PersonPhoto>(`/people/${id}/photos/${photoId}/primary`, {}),
 }
 
 // — Companies —
@@ -518,8 +557,15 @@ export const socialProviders = {
 
 // — Activity —
 export const activity = {
-  forPerson: (personId: string) => get<SocialActivity[]>(`/people/${personId}/activity`),
-  refresh: (personId: string) => post<SocialActivity[]>(`/people/${personId}/activity/refresh`, {}),
+  // Backend paginates and returns { data, current_page, total, ... }; callers
+  // want a bare array.
+  forPerson: async (personId: string): Promise<SocialActivity[]> => {
+    const r = await get<{ data: SocialActivity[] } | SocialActivity[]>(`/people/${personId}/activity`)
+    if (Array.isArray(r)) return r
+    return r?.data ?? []
+  },
+  refresh: (personId: string) =>
+    post<{ created: SocialActivity[]; errors?: unknown[] }>(`/people/${personId}/activity/refresh`, {}),
   acknowledge: (activityId: string) => post<void>(`/activity/${activityId}/acknowledge`, {}),
 }
 

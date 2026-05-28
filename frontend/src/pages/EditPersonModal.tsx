@@ -8,6 +8,7 @@ import {
 import { X, Loader2, Instagram, Facebook, Twitter, MessageCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { EmailRows, PhoneRows } from '@/components/ContactRowsEditor'
+import { PhotoGallery } from '@/components/PhotoGallery'
 
 /** Seed the editor's email rows from a Person — merges legacy `email` if it
  *  isn't already in the `emails` array, deduping by lowercased value. */
@@ -187,17 +188,31 @@ export function EditPersonModal({ person, onClose }: Props) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    if (!firstName.trim()) { setError('First name is required'); return }
-    if (!lastName.trim())  { setError('Last name is required'); return }
+    // Only require *something* identifying — last_name is optional in the
+    // backend (the import flow happily ingests first-name-only device contacts
+    // like "Drazenko"). Requiring it here was silently blocking save.
+    if (!firstName.trim() && !lastName.trim()) {
+      setError('Enter a first or last name.'); return
+    }
     setError(null)
     mutation.mutate()
   }
 
+  // Backdrop click closes this modal only. We stopPropagation so the click
+  // does not bubble to the underlying PersonDetailModal backdrop (z-40) and
+  // close that too. Arbitrary z-values: Tailwind's default scale tops out at
+  // z-50, which PersonDetailModal already uses for its panel — we need to sit
+  // strictly above it. (See InlineDrawer.tsx for the same z-[60]/z-[70] pattern.)
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    onClose()
+  }
+
   return (
     <>
-      <div className="fixed inset-0 z-60 bg-black/40" onClick={onClose} />
+      <div className="fixed inset-0 z-[60] bg-black/40" onClick={handleBackdropClick} />
 
-      <div className="fixed inset-0 z-70 flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
           <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
             <h2 className="text-base font-semibold text-zinc-900">Edit {person.full_name}</h2>
@@ -207,15 +222,20 @@ export function EditPersonModal({ person, onClose }: Props) {
           </div>
 
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Photos</label>
+              <PhotoGallery personId={person.id} editable />
+            </div>
+
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">First name *</label>
-                <input type="text" required autoFocus value={firstName} onChange={e => setFirstName(e.target.value)}
+                <label className="block text-xs font-medium text-zinc-500 mb-1.5">First name</label>
+                <input type="text" autoFocus value={firstName} onChange={e => setFirstName(e.target.value)}
                   className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Last name *</label>
-                <input type="text" required value={lastName} onChange={e => setLastName(e.target.value)}
+                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Last name</label>
+                <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
                   className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
               </div>
             </div>
@@ -441,22 +461,28 @@ export function EditPersonModal({ person, onClose }: Props) {
               </div>
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
-            )}
           </form>
 
-          <div className="px-6 py-4 border-t border-zinc-100 shrink-0 flex justify-end gap-3">
-            <button type="button" onClick={onClose}
-              className="text-sm text-zinc-600 hover:text-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-50 transition-colors">
-              Cancel
-            </button>
-            <button type="button" onClick={handleSubmit as unknown as React.MouseEventHandler}
-              disabled={mutation.isPending}
-              className="text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
-              {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              {mutation.isPending ? 'Saving...' : 'Save changes'}
-            </button>
+          {/* Sticky action bar — errors live HERE so they're always visible
+              alongside the Save button, not lost in the scrollable form above. */}
+          <div className="border-t border-zinc-100 shrink-0">
+            {error && (
+              <div className="px-6 pt-3">
+                <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
+              </div>
+            )}
+            <div className="px-6 py-4 flex justify-end gap-3">
+              <button type="button" onClick={onClose}
+                className="text-sm text-zinc-600 hover:text-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-50 transition-colors">
+                Cancel
+              </button>
+              <button type="button" onClick={handleSubmit as unknown as React.MouseEventHandler}
+                disabled={mutation.isPending}
+                className="text-sm bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                {mutation.isPending && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                {mutation.isPending ? 'Saving...' : 'Save changes'}
+              </button>
+            </div>
           </div>
         </div>
       </div>

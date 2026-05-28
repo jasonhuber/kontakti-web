@@ -36,4 +36,13 @@ return [
     'fcm' => [
         'service_account_path' => env('FCM_SERVICE_ACCOUNT_PATH', storage_path('app/kontakti-firebase.json')),
     ],
+
+    // QA token endpoint — issues long-lived Sanctum tokens for the configured
+    // user. Only enabled when QA_TOKEN_ENABLED=true and protected by a shared
+    // secret in QA_TOKEN_SECRET.
+    'qa' => [
+        'enabled'    => env('QA_TOKEN_ENABLED', false),
+        'secret'     => env('QA_TOKEN_SECRET'),
+        'user_email' => env('QA_USER_EMAIL'),
+    ],
 ];

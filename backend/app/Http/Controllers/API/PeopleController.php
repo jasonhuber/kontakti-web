@@ -89,7 +89,7 @@ class PeopleController extends Controller
 
         return response()->json(
             $person->load([
-                'company', 'tags', 'emails', 'phones',
+                'company', 'tags', 'emails', 'phones', 'photos',
                 'tasks' => fn($q) => $q->pending()->orderBy('due_at'),
                 'socialGroups',
                 'activity' => fn($q) => $q->limit(10),
@@ -450,6 +450,25 @@ class PeopleController extends Controller
                 if (!$avatar) { $failed++; continue; }
 
                 Person::where('id', $person->id)->update(['avatar_url' => $avatar]);
+                // Also persist as a PersonPhoto so the gallery shows it and
+                // the user can swap primaries / add more from there.
+                $alreadyHave = \App\Models\PersonPhoto::where('person_id', $person->id)
+                    ->where('url', $avatar)
+                    ->exists();
+                if (!$alreadyHave) {
+                    \App\Models\PersonPhoto::create([
+                        'id'         => (string) \Illuminate\Support\Str::uuid7(),
+                        'person_id'  => $person->id,
+                        'url'        => $avatar,
+                        'source'     => 'linkedin',
+                        'is_primary' => true,
+                        'sort_order' => 1,
+                    ]);
+                    // Demote any previously-primary photo so only one is flagged.
+                    \App\Models\PersonPhoto::where('person_id', $person->id)
+                        ->where('url', '!=', $avatar)
+                        ->update(['is_primary' => false]);
+                }
                 $updated++;
             } catch (\Throwable) {
                 $failed++;
