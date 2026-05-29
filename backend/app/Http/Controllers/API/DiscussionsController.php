@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use App\Http\Controllers\Controller;
 use App\Models\{Discussion, Person, ActivityFeedItem};
 use Illuminate\Http\{Request, JsonResponse};
+use Illuminate\Validation\Rule;
 
 class DiscussionsController extends Controller
 {
@@ -39,7 +40,8 @@ class DiscussionsController extends Controller
             'body'             => 'nullable|string',
             'deal_id'          => 'nullable|uuid|exists:deals,id',
             'participant_ids'  => 'nullable|array',
-            'participant_ids.*' => 'uuid|exists:people,id',
+            // Scope to the current user so you can't attach another tenant's person.
+            'participant_ids.*' => ['uuid', Rule::exists('people', 'id')->where('user_id', auth()->id())],
             'metadata'         => 'nullable|array',
         ]);
 
@@ -49,8 +51,10 @@ class DiscussionsController extends Controller
         if (!empty($data['participant_ids'])) {
             $discussion->participants()->attach($data['participant_ids']);
 
-            // Update last_contacted_at for each participant
+            // Update last_contacted_at for each participant — scoped to this user
+            // so a forged ID can never touch another tenant's record.
             Person::whereIn('id', $data['participant_ids'])
+                ->where('user_id', auth()->id())
                 ->where(fn($q) => $q->whereNull('last_contacted_at')->orWhere('last_contacted_at', '<', $data['date']))
                 ->update(['last_contacted_at' => $data['date']]);
         }
@@ -98,6 +102,7 @@ class DiscussionsController extends Controller
     public function addParticipant(Discussion $discussion, Person $person): JsonResponse
     {
         abort_if($discussion->user_id !== auth()->id(), 403);
+        abort_if($person->user_id !== auth()->id(), 403);
 
         $discussion->participants()->syncWithoutDetaching([$person->id]);
         return response()->json($discussion->load('participants'));
@@ -106,6 +111,7 @@ class DiscussionsController extends Controller
     public function removeParticipant(Discussion $discussion, Person $person): JsonResponse
     {
         abort_if($discussion->user_id !== auth()->id(), 403);
+        abort_if($person->user_id !== auth()->id(), 403);
 
         $discussion->participants()->detach($person->id);
         return response()->json($discussion->load('participants'));

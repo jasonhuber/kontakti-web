@@ -166,7 +166,8 @@ class PeopleController extends Controller
             'email'                 => $emailUnique,
             'phone'                 => "{$opt}|string|max:50",
             'linkedin_url'          => "{$opt}|url|max:500",
-            'company_id'            => "{$opt}|uuid|exists:companies,id",
+            // Scope FK existence to this user so you can't link to / leak another tenant's company.
+            'company_id'            => array_merge(explode('|', "{$opt}|uuid"), [Rule::exists('companies', 'id')->where('user_id', auth()->id())]),
             'title'                 => "{$opt}|string|max:200",
             'job_department'        => "{$opt}|string|max:100",
             'relationship_strength' => ($isStore ? 'nullable|' : 'sometimes|') . 'in:cold,warm,hot,close',
@@ -215,7 +216,7 @@ class PeopleController extends Controller
             'region'                     => "{$opt}|string|max:150",
             'country'                    => "{$opt}|string|max:100",
             'how_we_met'                 => "{$opt}|string",
-            'introduced_by_id'           => "{$opt}|uuid|exists:people,id",
+            'introduced_by_id'           => array_merge(explode('|', "{$opt}|uuid"), [Rule::exists('people', 'id')->where('user_id', auth()->id())]),
         ];
     }
 
