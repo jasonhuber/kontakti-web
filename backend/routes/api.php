@@ -24,7 +24,9 @@ use App\Http\Controllers\API\{
     JobsController,
     GmailController,
     VoiceController,
-    PushTokensController
+    PushTokensController,
+    McpController,
+    AppleContactLinksController
 };
 
 Route::prefix('v1')->group(function () {
@@ -155,5 +157,18 @@ Route::prefix('v1')->group(function () {
         Route::post('duplicates/merge-identical', [DuplicatesController::class, 'mergeIdentical']);
         Route::post('duplicates/{duplicate_candidate}/merge', [DuplicatesController::class, 'merge']);
         Route::post('duplicates/{duplicate_candidate}/dismiss', [DuplicatesController::class, 'dismiss']);
+
+        // MCP server — token management (token creation is guarded by normal app auth)
+        Route::get('mcp/tokens',              [McpController::class, 'listTokens']);
+        Route::post('mcp/tokens',             [McpController::class, 'createToken']);
+        Route::delete('mcp/tokens/{tokenId}', [McpController::class, 'revokeToken']);
+
+        // MCP server — JSON-RPC handler (accepts any valid Sanctum token)
+        Route::post('mcp', [McpController::class, 'handle']);
+
+        // Apple Contact identifier cloud backup (opt-in, iOS only)
+        Route::get('apple-contact-links',                  [AppleContactLinksController::class, 'index']);
+        Route::post('apple-contact-links',                 [AppleContactLinksController::class, 'bulkUpsert']);
+        Route::delete('apple-contact-links/{personId}',    [AppleContactLinksController::class, 'destroyByPerson']);
     });
 });

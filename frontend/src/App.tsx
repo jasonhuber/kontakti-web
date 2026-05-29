@@ -14,12 +14,13 @@ import { DuplicatesPage } from '@/pages/DuplicatesPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import { TodayPage } from '@/pages/TodayPage'
 import { SocialGroupsPage } from '@/pages/SocialGroupsPage'
-import { auth, duplicates, today as todayApi } from '@/lib/api'
+import { ReviewContactsPage } from '@/pages/ReviewContactsPage'
+import { auth, duplicates, today as todayApi, people as peopleApi } from '@/lib/api'
 import { isPushSupported, registerServiceWorker } from '@/lib/push'
 import { VoiceCaptureFlow } from '@/components/VoiceCaptureFlow'
 import {
   Search, Users, Building2, Share2, Settings, Activity, LogOut, Mic,
-  CheckSquare, FileText, Copy, Sunrise, UsersRound,
+  CheckSquare, FileText, Copy, Sunrise, UsersRound, ShieldCheck,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,7 +30,7 @@ const queryClient = new QueryClient({
 
 type View =
   | 'today' | 'people' | 'companies' | 'discussions' | 'tasks' | 'notes' | 'feed'
-  | 'groups' | 'duplicates' | 'settings'
+  | 'groups' | 'duplicates' | 'review' | 'settings'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'today',        label: 'Today',        icon: Sunrise },
@@ -41,6 +42,7 @@ const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: st
   { id: 'feed',         label: 'Activity',     icon: Activity },
   { id: 'groups',       label: 'Groups',       icon: UsersRound },
   { id: 'duplicates',   label: 'Duplicates',   icon: Copy },
+  { id: 'review',       label: 'Review',       icon: ShieldCheck },
   { id: 'settings',     label: 'Settings',     icon: Settings },
 ]
 
@@ -62,6 +64,14 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     localStorage.removeItem('kontakti_token')
     onLogout()
   }
+
+  // Review queue badge — 60s stale.
+  const { data: healthData } = useQuery({
+    queryKey: ['people-health'],
+    queryFn: () => peopleApi.health(),
+    staleTime: 60_000,
+  })
+  const reviewCount = healthData?.buckets?.needs_review?.count ?? 0
 
   // Pending duplicates badge — small, 60s stale.
   const { data: pendingDups } = useQuery({
@@ -128,6 +138,11 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   {duplicateCount}
                 </span>
               )}
+              {id === 'review' && reviewCount > 0 && (
+                <span className="ml-auto text-[10px] font-semibold bg-amber-500 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                  {reviewCount}
+                </span>
+              )}
               {id === 'today' && todayCount > 0 && (
                 <span className="ml-auto text-[10px] font-semibold bg-amber-500 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
                   {todayCount}
@@ -174,6 +189,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {view === 'feed'        && <ActivityFeedPage />}
         {view === 'groups'      && <SocialGroupsPage />}
         {view === 'duplicates'  && <DuplicatesPage />}
+        {view === 'review'      && <ReviewContactsPage />}
         {view === 'settings'    && <SettingsPage />}
       </main>
 

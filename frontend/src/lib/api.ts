@@ -342,6 +342,8 @@ export const people = {
     del(`/people/${id}/photos/${photoId}`),
   setPrimaryPhoto: (id: string, photoId: string) =>
     post<PersonPhoto>(`/people/${id}/photos/${photoId}/primary`, {}),
+  health: () => get<PeopleHealthResponse>('/people/health'),
+  review: (id: string) => post<Person>(`/people/${id}/review`, {}),
 }
 
 // — Companies —
@@ -682,6 +684,51 @@ export interface NaturalSearchResponse {
 export const naturalSearch = {
   query: (query: string, limit?: number) =>
     post<NaturalSearchResponse>('/search/natural', { query, ...(limit ? { limit } : {}) }),
+}
+
+// — People health / review queue —
+export interface PeopleHealthSample {
+  id: string; first_name: string; last_name: string; email: string | null
+}
+export interface PeopleHealthBucket {
+  count: number
+  samples: PeopleHealthSample[]
+}
+export type PeopleHealthBucketKey =
+  | 'missing_first_name' | 'missing_last_name' | 'missing_contact_info'
+  | 'invalid_email' | 'unlinked_company' | 'needs_review'
+  | 'imported_unreviewed' | 'duplicate_email'
+export interface PeopleHealthResponse {
+  total: number
+  buckets: Record<PeopleHealthBucketKey, PeopleHealthBucket>
+}
+
+// — MCP tokens —
+export interface McpToken {
+  id: number
+  name: string
+  last_used_at: string | null
+  created_at: string
+  abilities: string[]
+}
+export const mcp = {
+  listTokens: () => get<McpToken[]>('/mcp/tokens'),
+  createToken: (name?: string) => post<{ token: string; id: number; name: string }>('/mcp/tokens', { name: name ?? 'mcp-' + new Date().toISOString().slice(0, 10) }),
+  revokeToken: (id: number) => del(`/mcp/tokens/${id}`),
+}
+
+// — Apple Contact links (opt-in cloud backup) —
+export interface AppleContactLink {
+  person_id: string
+  cn_contact_identifier: string
+  device_label?: string
+  updated_at: string
+}
+export const appleContactLinks = {
+  list: () => get<AppleContactLink[]>('/apple-contact-links'),
+  bulkUpsert: (links: { person_id: string; cn_contact_identifier: string; device_label?: string }[]) =>
+    post<{ upserted: number }>('/apple-contact-links', { links }),
+  destroyByPerson: (personId: string) => del(`/apple-contact-links/${personId}`),
 }
 
 // — Web push —

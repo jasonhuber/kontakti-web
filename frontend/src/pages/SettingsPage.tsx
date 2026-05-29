@@ -2,11 +2,14 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   googleAccounts,
+  mcp,
   type GoogleAccount,
   type GoogleAccountLabel,
+  type McpToken,
 } from '@/lib/api'
 import {
   Loader2, Mail, Star, Trash2, AlertCircle, Plus, Bell, BellOff,
+  Cpu, Copy, Check,
 } from 'lucide-react'
 import {
   isPushSupported, getNotificationPermission, getSubscription,
@@ -77,6 +80,8 @@ export function SettingsPage() {
       </div>
 
       <GoogleAccountsSection />
+
+      <McpTokensSection />
 
       <NotificationsSection />
 
@@ -507,6 +512,135 @@ function LinkAccountForm({
         )}
       </div>
     </div>
+  )
+}
+
+// ── MCP tokens section ───────────────────────────────────────────────────────
+
+function McpTokensSection() {
+  const qc = useQueryClient()
+  const [newTokenValue, setNewTokenValue] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const { data: tokens, isLoading } = useQuery({
+    queryKey: ['mcp-tokens'],
+    queryFn: () => mcp.listTokens(),
+  })
+
+  const createMut = useMutation({
+    mutationFn: () => mcp.createToken(),
+    onSuccess: (r) => {
+      setNewTokenValue(r.token)
+      setCreateError(null)
+      qc.invalidateQueries({ queryKey: ['mcp-tokens'] })
+    },
+    onError: (e: unknown) => setCreateError(e instanceof Error ? e.message : 'Failed to create token'),
+  })
+
+  const revokeMut = useMutation({
+    mutationFn: (id: number) => mcp.revokeToken(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['mcp-tokens'] })
+    },
+  })
+
+  const copyToken = async () => {
+    if (!newTokenValue) return
+    await navigator.clipboard.writeText(newTokenValue)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <section className="bg-white border border-zinc-200 rounded-2xl p-5 space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-zinc-900 flex items-center gap-2">
+          <Cpu className="w-4 h-4 text-zinc-400" />
+          MCP access tokens
+        </h2>
+        <p className="text-xs text-zinc-500 mt-0.5">
+          Create tokens for Claude Code, Claude Desktop, or Cursor to read your contacts via MCP.
+        </p>
+      </div>
+
+      <div className="text-xs text-zinc-500 bg-zinc-50 border border-zinc-100 rounded-lg px-3 py-2 font-mono">
+        <span className="text-zinc-400">URL: </span>https://kontakti.app/api/v1/mcp
+      </div>
+
+      {isLoading && (
+        <div className="flex items-center gap-2 text-sm text-zinc-400">
+          <Loader2 className="w-4 h-4 animate-spin" /> Loading tokens…
+        </div>
+      )}
+
+      {tokens && tokens.length > 0 && (
+        <div className="space-y-2">
+          {tokens.map((t: McpToken) => (
+            <div key={t.id} className="flex items-center gap-3 border border-zinc-200 rounded-xl px-3 py-2">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-zinc-800 truncate">{t.name}</p>
+                <p className="text-xs text-zinc-400">
+                  Created {new Date(t.created_at).toLocaleDateString()}
+                  {t.last_used_at ? ` · last used ${new Date(t.last_used_at).toLocaleDateString()}` : ' · never used'}
+                </p>
+              </div>
+              <button
+                onClick={() => revokeMut.mutate(t.id)}
+                disabled={revokeMut.isPending}
+                className="text-xs text-red-600 hover:text-red-700 inline-flex items-center gap-1 px-2 py-1 rounded-md disabled:opacity-50"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Revoke
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {tokens?.length === 0 && !isLoading && (
+        <p className="text-sm text-zinc-400">No MCP tokens yet.</p>
+      )}
+
+      {newTokenValue && (
+        <div className="border border-emerald-200 bg-emerald-50 rounded-xl p-3 space-y-2">
+          <p className="text-xs font-medium text-emerald-800">Token created — copy it now, it won't be shown again.</p>
+          <div className="flex items-center gap-2">
+            <code className="flex-1 text-xs font-mono text-zinc-700 bg-white border border-zinc-200 rounded px-2 py-1.5 truncate">
+              {newTokenValue}
+            </code>
+            <button
+              onClick={copyToken}
+              className="shrink-0 flex items-center gap-1 text-xs font-medium border border-zinc-200 bg-white hover:bg-zinc-50 px-2 py-1.5 rounded-lg transition-colors"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+              {copied ? 'Copied' : 'Copy'}
+            </button>
+          </div>
+          <button
+            onClick={() => setNewTokenValue(null)}
+            className="text-xs text-zinc-400 hover:text-zinc-600"
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {createError && (
+        <div className="flex items-start gap-2 text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+          <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+          <span>{createError}</span>
+        </div>
+      )}
+
+      <button
+        onClick={() => createMut.mutate()}
+        disabled={createMut.isPending}
+        className="inline-flex items-center gap-2 text-sm border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
+      >
+        {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+        {createMut.isPending ? 'Creating…' : 'Create MCP token'}
+      </button>
+    </section>
   )
 }
 
