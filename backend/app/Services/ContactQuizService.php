@@ -78,10 +78,15 @@ class ContactQuizService
 
     /**
      * Apply a user's answer to the underlying Person record.
+     *
+     * `$note` is an optional free-text note the user jots while reviewing. It's
+     * saved as a first-class Note record on the person (not the legacy `notes`
+     * string column) so it surfaces in MessageDrafter's `recent_notes` and the
+     * AI can use it to decide how/why to reach out.
      */
-    public function answer(ContactPrompt $prompt, string $answer, ?array $structured = null): void
+    public function answer(ContactPrompt $prompt, string $answer, ?array $structured = null, ?string $note = null): void
     {
-        DB::transaction(function () use ($prompt, $answer, $structured) {
+        DB::transaction(function () use ($prompt, $answer, $structured, $note) {
             $prompt->forceFill([
                 'answered_at'       => now(),
                 'answer'            => $answer,
@@ -90,6 +95,15 @@ class ContactQuizService
 
             $person = $prompt->person;
             if (!$person) return;
+
+            $note = $note !== null ? trim($note) : '';
+            if ($note !== '') {
+                $person->notes()->create([
+                    'user_id'  => $prompt->user_id,
+                    'body'     => $note,
+                    'metadata' => ['source' => 'quiz', 'question_key' => $prompt->question_key],
+                ]);
+            }
 
             switch ($prompt->question_key) {
                 case 'recognize':

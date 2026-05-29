@@ -130,11 +130,12 @@ export function QuizCard({
 }) {
   const qc = useQueryClient()
   const [customAnswer, setCustomAnswer] = useState('')
+  const [note, setNote] = useState('')
   const [leaving, setLeaving] = useState(false)
   const needsInput = QUESTION_NEEDS_INPUT[prompt.question_key]
 
   const answerMut = useMutation({
-    mutationFn: (answer: string) => quizApi.answer(prompt.id, answer),
+    mutationFn: (answer: string) => quizApi.answer(prompt.id, answer, undefined, note),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['today'] })
       if (prompt.person) qc.invalidateQueries({ queryKey: ['person', prompt.person.id] })
@@ -231,6 +232,20 @@ export function QuizCard({
             </button>
           </form>
         )}
+
+        {/* Optional free-text note — saved as a real Note on the person so the
+            AI can use it later to decide how/why to reach out. Rides along with
+            whichever answer (chip or custom) the user submits. */}
+        <div className="mt-2">
+          <textarea
+            value={note}
+            onChange={e => setNote(e.target.value)}
+            placeholder="Add a note (optional) — how you know them, anything to remember…"
+            disabled={busy}
+            rows={2}
+            className="w-full text-xs border border-zinc-200 rounded-md px-2 py-1.5 resize-none focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 disabled:opacity-50"
+          />
+        </div>
 
         {/* Footer */}
         <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-100">

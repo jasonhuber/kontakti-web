@@ -27,9 +27,10 @@ class QuizController extends Controller
         $data = $request->validate([
             'answer'     => 'required|string|max:4000',
             'structured' => 'nullable|array',
+            'note'       => 'nullable|string|max:4000',
         ]);
 
-        $this->quiz->answer($prompt, $data['answer'], $data['structured'] ?? null);
+        $this->quiz->answer($prompt, $data['answer'], $data['structured'] ?? null, $data['note'] ?? null);
 
         return response()->json([
             'prompt' => $this->serialize($prompt->fresh(['person'])),

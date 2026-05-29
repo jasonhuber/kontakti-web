@@ -593,9 +593,12 @@ export const today = {
 
 // — Contact quiz —
 export const quiz = {
-  answer: (id: string, answer: string, structured?: Record<string, unknown>) =>
-    post<{ person: Person }>(`/quiz/${encodeURIComponent(id)}/answer`,
-      structured ? { answer, structured } : { answer }),
+  answer: (id: string, answer: string, structured?: Record<string, unknown>, note?: string) =>
+    post<{ person: Person }>(`/quiz/${encodeURIComponent(id)}/answer`, {
+      answer,
+      ...(structured ? { structured } : {}),
+      ...(note && note.trim() ? { note: note.trim() } : {}),
+    }),
   skip: (id: string) =>
     post<void>(`/quiz/${encodeURIComponent(id)}/skip`, {}),
   history: async (params?: { person_id?: string }): Promise<ContactPrompt[]> => {
