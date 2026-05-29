@@ -45,6 +45,8 @@ Route::prefix('v1')->group(function () {
         // People
         Route::post('people/enrich', [PeopleController::class, 'enrich']);
         Route::post('people/backfill-avatars', [PeopleController::class, 'backfillAvatars']);
+        Route::get('people/health', [PeopleController::class, 'health']);
+        Route::post('people/{person}/review', [PeopleController::class, 'review']);
         Route::apiResource('people', PeopleController::class);
         Route::get('people/{person}/timeline', [PeopleController::class, 'timeline']);
         // Photos (multiple per contact)

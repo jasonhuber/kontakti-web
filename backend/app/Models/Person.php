@@ -20,6 +20,7 @@ class Person extends Model
         'birthday',
         'notes', 'device_note', 'addresses', 'urls', 'metadata',
         'do_not_contact', 'do_not_contact_reason',
+        'needs_review', 'reviewed_at',
         // Social handles + relational metadata
         'instagram_handle', 'facebook_url', 'twitter_x_handle', 'tiktok_handle',
         'whatsapp_phone', 'previous_employers', 'city', 'region', 'country',
@@ -38,6 +39,8 @@ class Person extends Model
         'linkedin_snapshot'        => 'array',
         'linkedin_last_scraped_at' => 'datetime',
         'do_not_contact'           => 'boolean',
+        'needs_review'             => 'boolean',
+        'reviewed_at'              => 'datetime',
     ];
 
     protected $appends = [

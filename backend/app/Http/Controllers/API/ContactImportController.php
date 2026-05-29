@@ -108,6 +108,26 @@ class ContactImportController extends Controller
                 $metadata['google_account_id'] = $googleAccountId;
             }
 
+            // Flag rows the client should review (missing field combinations
+            // we know will look wrong in the People list). The client uses
+            // `needs_review` + these warnings to power its Review queue.
+            $warnings = [];
+            if (empty($contact['last_name'])) {
+                $warnings[] = 'missing_last_name';
+            }
+            if (empty($contact['email']) && empty($contact['phone'])) {
+                $warnings[] = 'missing_contact_info';
+            }
+            if (!empty($contact['email']) && !filter_var($contact['email'], FILTER_VALIDATE_EMAIL)) {
+                $warnings[] = 'invalid_email';
+            }
+            if (!empty($contact['company_name']) && $companyId === null) {
+                $warnings[] = 'unlinked_company';
+            }
+            if ($warnings) {
+                $metadata['import_warnings'] = $warnings;
+            }
+
             $personData = [
                 'first_name'            => $contact['first_name'],
                 'last_name'             => $contact['last_name'],
@@ -125,6 +145,7 @@ class ContactImportController extends Controller
                 'company_id'            => $companyId,
                 'relationship_strength' => 'cold',
                 'metadata'              => $metadata,
+                'needs_review'          => !empty($warnings),
             ];
 
             $person = $user->people()->create($personData);

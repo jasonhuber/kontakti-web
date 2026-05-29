@@ -40,9 +40,110 @@ class PeopleController extends Controller
             $query->overdue();
         }
 
+        if ($request->boolean('needs_review')) {
+            $query->where('needs_review', true);
+        }
+
         $people = $query->orderBy('last_name')->paginate(50);
 
         return response()->json($people);
+    }
+
+    /**
+     * Returns counts (and a few sample IDs) per "needs cleanup" bucket so the
+     * client can build a Review Contacts queue without scrolling every row.
+     *
+     * Buckets are intentionally lossy — a single person can land in multiple.
+     */
+    public function health(): JsonResponse
+    {
+        $base = auth()->user()->people();
+        $total = (clone $base)->count();
+
+        $buckets = [
+            'missing_first_name' => (clone $base)
+                ->where(fn($q) => $q->whereNull('first_name')->orWhere('first_name', '')),
+            'missing_last_name' => (clone $base)
+                ->where(fn($q) => $q->whereNull('last_name')->orWhere('last_name', '')),
+            'missing_contact_info' => (clone $base)
+                ->where(fn($q) => $q->whereNull('email')->orWhere('email', ''))
+                ->where(fn($q) => $q->whereNull('phone')->orWhere('phone', '')),
+            'invalid_email' => (clone $base)
+                ->whereNotNull('email')
+                ->where('email', '!=', '')
+                ->whereRaw("email NOT LIKE '%_@_%._%'"),
+            'unlinked_company' => (clone $base)
+                ->whereNull('company_id')
+                ->whereRaw("JSON_EXTRACT(metadata, '$.company_name') IS NOT NULL"),
+            'needs_review' => (clone $base)->where('needs_review', true),
+            'imported_unreviewed' => (clone $base)
+                ->whereNull('reviewed_at')
+                ->whereRaw("JSON_EXTRACT(metadata, '$.import_source') IS NOT NULL"),
+        ];
+
+        $payload = [
+            'total' => $total,
+            'buckets' => [],
+        ];
+
+        foreach ($buckets as $key => $q) {
+            $count = (clone $q)->count();
+            $samples = (clone $q)->limit(8)
+                ->get(['id', 'first_name', 'last_name', 'email'])
+                ->map(fn($p) => [
+                    'id'         => $p->id,
+                    'first_name' => $p->first_name,
+                    'last_name'  => $p->last_name,
+                    'email'      => $p->email,
+                ]);
+            $payload['buckets'][$key] = [
+                'count'   => $count,
+                'samples' => $samples,
+            ];
+        }
+
+        // Duplicate-email bucket: emails shared by 2+ rows.
+        $dupEmails = (clone $base)
+            ->whereNotNull('email')
+            ->where('email', '!=', '')
+            ->selectRaw('LOWER(email) AS lemail, COUNT(*) AS c')
+            ->groupBy('lemail')
+            ->havingRaw('c > 1')
+            ->pluck('lemail');
+
+        $dupRows = $dupEmails->isEmpty()
+            ? collect()
+            : (clone $base)
+                ->whereIn(\DB::raw('LOWER(email)'), $dupEmails)
+                ->get(['id', 'first_name', 'last_name', 'email']);
+
+        $payload['buckets']['duplicate_email'] = [
+            'count'   => $dupRows->count(),
+            'samples' => $dupRows->take(8)->map(fn($p) => [
+                'id'         => $p->id,
+                'first_name' => $p->first_name,
+                'last_name'  => $p->last_name,
+                'email'      => $p->email,
+            ])->values(),
+        ];
+
+        return response()->json($payload);
+    }
+
+    /**
+     * Mark a person as reviewed: sets `reviewed_at = now()` and clears the
+     * `needs_review` flag. Idempotent — calling again just bumps the timestamp.
+     */
+    public function review(Person $person): JsonResponse
+    {
+        abort_if($person->user_id !== auth()->id(), 403);
+
+        $person->update([
+            'reviewed_at'  => now(),
+            'needs_review' => false,
+        ]);
+
+        return response()->json($person->fresh(['company', 'tags']));
     }
 
     public function store(Request $request, PersonContactSync $sync): JsonResponse
