@@ -111,20 +111,6 @@ RewriteEngine On
 RewriteCond %{REQUEST_URI} ^/api/
 RewriteRule ^api/(.*)$ api.php [L,QSA]
 
-# Never cache API responses at the edge. Cloudflare/LiteSpeed had cached a
-# stale 404 for /api/v1/today which made every authenticated request to that
-# endpoint return the cached HTML 404 regardless of the Bearer token. These
-# headers tell every cache layer (Cloudflare, LiteSpeed, browser) to bypass.
-<IfModule mod_headers.c>
-  <FilesMatch "^api\.php$">
-    Header always set Cache-Control "no-store, no-cache, must-revalidate, private, max-age=0"
-    Header always set CDN-Cache-Control "no-store"
-    Header always set Cloudflare-CDN-Cache-Control "no-store"
-    Header always unset ETag
-    Header always set Pragma "no-cache"
-  </FilesMatch>
-</IfModule>
-
 # SPA fallback for /app and /app/* — skip real files (JS/CSS assets), rewrite everything else
 RewriteCond %{REQUEST_URI} ^/app
 RewriteCond %{REQUEST_FILENAME} !-f
