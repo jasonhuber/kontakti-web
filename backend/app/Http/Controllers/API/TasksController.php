@@ -10,7 +10,9 @@ class TasksController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Task::where('user_id', auth()->id())->orderBy('due_at');
+        $query = Task::where('user_id', auth()->id())
+            ->with('taskable')
+            ->orderBy('due_at');
 
         if ($request->boolean('pending')) {
             $query->pending();
@@ -18,6 +20,16 @@ class TasksController extends Controller
 
         if ($request->boolean('overdue')) {
             $query->overdue();
+        }
+
+        // ?completed=true  → only completed tasks
+        // ?completed=false → only pending tasks
+        if ($request->has('completed')) {
+            if ($request->boolean('completed')) {
+                $query->whereNotNull('completed_at');
+            } else {
+                $query->whereNull('completed_at');
+            }
         }
 
         if ($taskableType = $request->get('taskable_type')) {

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { tasks, type Task, type TaskPriority } from '@/lib/api'
+import { tasks, type Task, type TaskPriority, type Person, type Company } from '@/lib/api'
+import { PersonDetailModal } from './PersonDetailModal'
 import { formatRelativeDate, cn } from '@/lib/utils'
-import { Plus, CheckSquare, Square, Clock, Loader2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, CheckSquare, Square, Clock, Loader2, ChevronDown, ChevronRight, User } from 'lucide-react'
 
 const PRIORITY_COLORS: Record<TaskPriority, string> = {
   low:    'bg-zinc-100 text-zinc-500',
@@ -12,6 +13,10 @@ const PRIORITY_COLORS: Record<TaskPriority, string> = {
 }
 
 const PRIORITY_OPTIONS: TaskPriority[] = ['low', 'medium', 'high', 'urgent']
+
+function isPerson(t: Person | Company | null | undefined): t is Person {
+  return !!t && 'first_name' in t
+}
 
 interface AddTaskRowProps {
   onAdd: (title: string, priority: TaskPriority, dueAt?: string) => void
@@ -91,11 +96,13 @@ interface TaskRowProps {
   onComplete: () => void
   onReopen: () => void
   completing: boolean
+  onPersonClick: (person: Person) => void
 }
 
-function TaskRow({ task, onComplete, onReopen, completing }: TaskRowProps) {
+function TaskRow({ task, onComplete, onReopen, completing, onPersonClick }: TaskRowProps) {
   const isDone = task.completed_at != null
   const isOverdue = !isDone && task.due_at && new Date(task.due_at) < new Date()
+  const linked = task.taskable
 
   return (
     <div className={cn(
@@ -125,7 +132,7 @@ function TaskRow({ task, onComplete, onReopen, completing }: TaskRowProps) {
         {task.description && (
           <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{task.description}</p>
         )}
-        <div className="flex items-center gap-2 mt-1">
+        <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium capitalize', PRIORITY_COLORS[task.priority])}>
             {task.priority}
           </span>
@@ -133,6 +140,20 @@ function TaskRow({ task, onComplete, onReopen, completing }: TaskRowProps) {
             <span className={cn('flex items-center gap-1 text-xs', isOverdue ? 'text-red-500' : 'text-zinc-400')}>
               <Clock className="w-3 h-3" />
               {formatRelativeDate(task.due_at)}
+            </span>
+          )}
+          {linked && isPerson(linked) && (
+            <button
+              onClick={() => onPersonClick(linked as Person)}
+              className="flex items-center gap-1 text-xs text-indigo-600 hover:text-indigo-700 hover:underline"
+            >
+              <User className="w-3 h-3" />
+              {(linked as Person).full_name}
+            </button>
+          )}
+          {linked && !isPerson(linked) && (linked as Company).name && (
+            <span className="flex items-center gap-1 text-xs text-zinc-500">
+              {(linked as Company).name}
             </span>
           )}
         </div>
@@ -145,6 +166,7 @@ export function TasksPage() {
   const queryClient = useQueryClient()
   const [showCompleted, setShowCompleted] = useState(false)
   const [completing, setCompleting] = useState<string | null>(null)
+  const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['tasks'],
@@ -219,6 +241,7 @@ export function TasksPage() {
               onComplete={() => handleToggle(task)}
               onReopen={() => handleToggle(task)}
               completing={completing === task.id}
+              onPersonClick={setSelectedPerson}
             />
           ))}
 
@@ -242,6 +265,7 @@ export function TasksPage() {
                       onComplete={() => handleToggle(task)}
                       onReopen={() => handleToggle(task)}
                       completing={completing === task.id}
+                      onPersonClick={setSelectedPerson}
                     />
                   ))}
                 </div>
@@ -249,6 +273,13 @@ export function TasksPage() {
             </div>
           )}
         </div>
+      )}
+
+      {selectedPerson && (
+        <PersonDetailModal
+          person={selectedPerson}
+          onClose={() => setSelectedPerson(null)}
+        />
       )}
     </div>
   )

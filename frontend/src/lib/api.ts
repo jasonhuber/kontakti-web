@@ -222,6 +222,7 @@ export interface Task {
   id: string; title: string; description?: string
   due_at?: string; completed_at?: string
   taskable_type?: string; taskable_id?: string
+  taskable?: Person | Company | null
   priority: TaskPriority; created_at: string; updated_at: string
 }
 export interface SearchResult {
