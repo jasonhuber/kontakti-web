@@ -3,7 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Person, Discussion, Note, Task, ActivityFeedItem};
+use App\Models\{Person, Discussion, Note, Task, ActivityFeedItem, ContactScheduleItem};
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\DB;
 
@@ -142,6 +142,7 @@ class McpController extends Controller
                 'find_overdue_followups'   => $this->toolFindOverdueFollowups($args),
                 'get_contact_health'       => $this->toolGetContactHealth(),
                 'who_should_i_reconnect_with' => $this->toolWhoToReconnect($args),
+                'upcoming_contact_schedule' => $this->toolUpcomingSchedule($args),
                 'log_discussion'           => $this->toolLogDiscussion($args),
                 'update_person'            => $this->toolUpdatePerson($args),
                 'create_followup_task'     => $this->toolCreateFollowupTask($args),
@@ -324,34 +325,65 @@ class McpController extends Controller
         return implode("\n", $lines);
     }
 
+    /**
+     * Reads the precomputed contact schedule (cadence + birthdays + holidays
+     * materialized nightly) for items due now/overdue — not computed on the fly.
+     */
     private function toolWhoToReconnect(array $args): string
     {
         $limit = min((int)($args['limit'] ?? 10), 25);
 
-        $people = auth()->user()->people()
-            ->where(fn($q) => $q
-                ->where('next_followup_at', '<=', now())
-                ->orWhere(function($q) {
-                    $q->whereNull('next_followup_at')
-                      ->where('last_contacted_at', '<=', now()->subDays(90));
-                })
-            )
-            ->whereNotNull('last_contacted_at')
-            ->where('do_not_contact', false)
-            ->orderBy('next_followup_at')
-            ->limit($limit)
-            ->get();
+        $items = ContactScheduleItem::where('user_id', auth()->id())
+            ->due()
+            ->with(['person:id,first_name,last_name,company_id,last_contacted_at,do_not_contact', 'person.company:id,name'])
+            ->orderBy('due_at')
+            ->get()
+            ->filter(fn($i) => $i->person && !$i->person->do_not_contact)
+            ->unique('person_id')
+            ->take($limit)
+            ->values();
 
-        if ($people->isEmpty()) {
-            return 'Everyone is up to date — no reconnects needed right now.';
+        if ($items->isEmpty()) {
+            return 'No one is due for a reach-out right now (per your contact schedule).';
         }
 
-        $lines = ["Top {$people->count()} person(s) to reconnect with:\n"];
-        foreach ($people as $p) {
-            $last  = $p->last_contacted_at ? substr($p->last_contacted_at, 0, 10) : 'never';
-            $lines[] = "• {$p->full_name} — last contact: {$last}" .
-                ($p->company ? " ({$p->company->name})" : '') .
-                ($p->next_followup_at ? ", follow-up due " . substr($p->next_followup_at, 0, 10) : '');
+        $lines = ["{$items->count()} person(s) due for a reach-out (from your schedule):\n"];
+        foreach ($items as $i) {
+            $p = $i->person;
+            $last = $p->last_contacted_at ? 'last contact ' . substr($p->last_contacted_at, 0, 10) : 'no contact on record';
+            $why  = $i->label ?: ucfirst($i->reason);
+            $lines[] = "• {$p->full_name} (ID: {$p->id}) — {$why}, due " . $i->due_at->toDateString()
+                . ($p->company ? " ({$p->company->name})" : '') . " — {$last}";
+        }
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Forward-looking view of the precomputed schedule (default 60 days out).
+     */
+    private function toolUpcomingSchedule(array $args): string
+    {
+        $days = min((int)($args['days'] ?? 60), 366);
+        $through = now()->addDays($days)->toDateString();
+
+        $items = ContactScheduleItem::where('user_id', auth()->id())
+            ->where('status', 'pending')
+            ->where('due_at', '<=', $through)
+            ->with(['person:id,first_name,last_name,company_id', 'person.company:id,name'])
+            ->orderBy('due_at')
+            ->limit(50)
+            ->get()
+            ->filter(fn($i) => $i->person);
+
+        if ($items->isEmpty()) {
+            return "Nothing scheduled in the next {$days} days.";
+        }
+
+        $lines = ["Upcoming reach-outs in the next {$days} days:\n"];
+        foreach ($items as $i) {
+            $why = $i->label ?: ucfirst($i->reason);
+            $lines[] = "• " . $i->due_at->toDateString() . " — {$i->person->full_name} ({$why})"
+                . ($i->person->company ? " @ {$i->person->company->name}" : '');
         }
         return implode("\n", $lines);
     }
@@ -797,11 +829,21 @@ class McpController extends Controller
             ],
             [
                 'name'        => 'who_should_i_reconnect_with',
-                'description' => 'Returns contacts who are overdue for a check-in based on follow-up dates and last-contact dates.',
+                'description' => 'People due for a reach-out right now, read from the precomputed contact schedule (cadence + birthdays + holidays). Use when the user is "in the mood to reach out".',
                 'inputSchema' => [
                     'type'       => 'object',
                     'properties' => [
                         'limit' => ['type' => 'integer', 'description' => 'Number of suggestions (default 10)'],
+                    ],
+                ],
+            ],
+            [
+                'name'        => 'upcoming_contact_schedule',
+                'description' => 'Forward-looking view of the precomputed contact schedule — who is coming up for a check-in, birthday, or holiday reach-out.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'days' => ['type' => 'integer', 'description' => 'Look-ahead window in days (default 60, max 366)'],
                     ],
                 ],
             ],

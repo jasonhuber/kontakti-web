@@ -17,6 +17,7 @@ class Person extends Model
         'first_name', 'last_name', 'nickname', 'email', 'phone',
         'linkedin_url', 'avatar_url', 'company_id', 'title', 'job_department',
         'relationship_strength', 'last_contacted_at', 'next_followup_at',
+        'contact_cadence', 'contact_on_birthday', 'contact_on_holidays',
         'birthday',
         'notes', 'device_note', 'addresses', 'urls', 'metadata',
         'do_not_contact', 'do_not_contact_reason',
@@ -39,6 +40,8 @@ class Person extends Model
         'linkedin_snapshot'        => 'array',
         'linkedin_last_scraped_at' => 'datetime',
         'do_not_contact'           => 'boolean',
+        'contact_on_birthday'      => 'boolean',
+        'contact_on_holidays'      => 'boolean',
         'needs_review'             => 'boolean',
         'reviewed_at'              => 'datetime',
     ];

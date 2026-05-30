@@ -50,6 +50,11 @@ class User extends Authenticatable
         return $this->hasMany(Person::class);
     }
 
+    public function contactSchedule()
+    {
+        return $this->hasMany(ContactScheduleItem::class);
+    }
+
     public function companies()
     {
         return $this->hasMany(Company::class);

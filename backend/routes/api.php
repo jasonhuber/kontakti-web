@@ -26,7 +26,8 @@ use App\Http\Controllers\API\{
     VoiceController,
     PushTokensController,
     McpController,
-    AppleContactLinksController
+    AppleContactLinksController,
+    ContactScheduleController
 };
 
 Route::prefix('v1')->group(function () {
@@ -165,6 +166,14 @@ Route::prefix('v1')->group(function () {
 
         // MCP server — JSON-RPC handler (accepts any valid Sanctum token)
         Route::post('mcp', [McpController::class, 'handle']);
+
+        // Contact schedule — precomputed, queryable reach-out timeline
+        Route::get('contact-schedule',                 [ContactScheduleController::class, 'index']);
+        Route::get('contact-schedule/suggestions',     [ContactScheduleController::class, 'suggestions']);
+        Route::post('contact-schedule/rebuild',        [ContactScheduleController::class, 'rebuild']);
+        Route::post('contact-schedule/{item}/complete', [ContactScheduleController::class, 'complete']);
+        Route::post('contact-schedule/{item}/snooze',  [ContactScheduleController::class, 'snooze']);
+        Route::post('contact-schedule/{item}/dismiss', [ContactScheduleController::class, 'dismiss']);
 
         // Apple Contact identifier cloud backup (opt-in, iOS only)
         Route::get('apple-contact-links',                  [AppleContactLinksController::class, 'index']);

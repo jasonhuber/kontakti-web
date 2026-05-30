@@ -4,9 +4,12 @@ import {
   today as todayApi,
   jobs,
   activity as activityApi,
+  contactSchedule,
+  people as peopleApi,
   type TodayItem,
   type LogVia,
   type Person,
+  type ReachOutSuggestion,
 } from '@/lib/api'
 import { deepLinkFor } from '@/lib/contact-links'
 import { cn } from '@/lib/utils'
@@ -187,6 +190,8 @@ export function TodayPage() {
         />
       )}
 
+      <ReachOutSuggestions onOpenPerson={setOpenPerson} />
+
       {!isLoading && !isError && items.length === 0 && quizPrompts.length === 0 && (
         <EmptyState />
       )}
@@ -231,6 +236,64 @@ function humanInterval(days: number): string {
   const months = days / 30
   if (months < 18) return `${Math.round(months)} months`
   return `${(days / 365).toFixed(1)} years`
+}
+
+// "I'm in the mood to reach out" — reads the precomputed contact schedule.
+function ReachOutSuggestions({ onOpenPerson }: { onOpenPerson: (p: Person) => void }) {
+  const qc = useQueryClient()
+  const { data, isLoading } = useQuery({
+    queryKey: ['reach-out-suggestions'],
+    queryFn: () => contactSchedule.suggestions(6),
+    staleTime: 60_000,
+  })
+
+  const completeMut = useMutation({
+    mutationFn: (id: number) => contactSchedule.complete(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] }),
+  })
+  const snoozeMut = useMutation({
+    mutationFn: (id: number) => contactSchedule.snooze(id, 30),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] }),
+  })
+
+  const openPerson = async (s: ReachOutSuggestion) => {
+    try { onOpenPerson(await peopleApi.get(s.person_id)) } catch { /* ignore */ }
+  }
+
+  if (isLoading || !data || data.suggestions.length === 0) return null
+
+  return (
+    <div className="mb-6 rounded-2xl border border-emerald-100 bg-emerald-50/50 p-4">
+      <div className="flex items-center gap-2 mb-3">
+        <Coffee className="w-4 h-4 text-emerald-600" />
+        <h2 className="text-sm font-semibold text-zinc-900">In the mood to reach out?</h2>
+        <span className="text-xs text-zinc-400">{data.count} due</span>
+      </div>
+      <div className="space-y-2">
+        {data.suggestions.map(s => (
+          <div key={s.schedule_id} className="flex items-center gap-3 bg-white border border-zinc-100 rounded-xl px-3 py-2">
+            <button onClick={() => openPerson(s)} className="min-w-0 flex-1 text-left">
+              <div className="text-sm font-medium text-zinc-900 truncate">{s.name}</div>
+              <div className="text-xs text-zinc-400 truncate">
+                {s.label ?? s.reason} · {s.last_contact}{s.company ? ` · ${s.company}` : ''}
+              </div>
+            </button>
+            <span className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5 shrink-0">
+              {s.channel_hint}
+            </span>
+            <button onClick={() => completeMut.mutate(s.schedule_id)} disabled={completeMut.isPending}
+              title="Mark reached out" className="text-xs text-emerald-700 hover:text-emerald-800 px-1.5 py-1 rounded-md shrink-0">
+              Done
+            </button>
+            <button onClick={() => snoozeMut.mutate(s.schedule_id)} disabled={snoozeMut.isPending}
+              title="Snooze 30 days" className="text-xs text-zinc-400 hover:text-zinc-600 px-1.5 py-1 rounded-md shrink-0">
+              Later
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function EmptyState() {

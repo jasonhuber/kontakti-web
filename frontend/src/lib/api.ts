@@ -1,6 +1,7 @@
 // API client for Kontakti backend
 
 export type RelationshipStrength = 'cold' | 'warm' | 'hot' | 'close'
+export type ContactCadence = 'none' | 'monthly' | 'quarterly' | 'biannual' | 'annual'
 export type DealStage = 'discovery' | 'qualified' | 'proposal' | 'negotiation' | 'closed_won' | 'closed_lost' | 'on_hold'
 export type DiscussionType = 'call' | 'meeting' | 'email' | 'message' | 'event' | 'other'
 export type TaskPriority = 'low' | 'medium' | 'high' | 'urgent'
@@ -64,6 +65,9 @@ export interface Person {
   job_department?: string
   relationship_strength: RelationshipStrength
   last_contacted_at?: string; next_followup_at?: string
+  contact_cadence?: ContactCadence
+  contact_on_birthday?: boolean
+  contact_on_holidays?: boolean
   birthday?: string
   notes?: string
   device_note?: string
@@ -702,6 +706,40 @@ export type PeopleHealthBucketKey =
 export interface PeopleHealthResponse {
   total: number
   buckets: Record<PeopleHealthBucketKey, PeopleHealthBucket>
+}
+
+// — Contact schedule (precomputed reach-out timeline) —
+export type ScheduleReason = 'cadence' | 'birthday' | 'holiday'
+export type ScheduleStatus = 'pending' | 'done' | 'snoozed' | 'dismissed'
+export interface ContactScheduleItem {
+  id: number
+  person_id: string
+  due_at: string
+  reason: ScheduleReason
+  label: string | null
+  status: ScheduleStatus
+  person?: Person
+}
+export interface ReachOutSuggestion {
+  schedule_id: number
+  person_id: string
+  name: string
+  reason: ScheduleReason
+  label: string | null
+  due_at: string
+  company: string | null
+  channel_hint: string
+  last_contact: string
+}
+export const contactSchedule = {
+  list: (params?: Record<string, string>) =>
+    get<Paginated<ContactScheduleItem>>('/contact-schedule', params),
+  suggestions: (limit = 5) =>
+    get<{ count: number; suggestions: ReachOutSuggestion[] }>('/contact-schedule/suggestions', { limit: String(limit) }),
+  rebuild: () => post<{ rebuilt: boolean; scheduled_items: number }>('/contact-schedule/rebuild', {}),
+  complete: (id: number) => post<ContactScheduleItem>(`/contact-schedule/${id}/complete`, {}),
+  snooze: (id: number, days = 7) => post<ContactScheduleItem>(`/contact-schedule/${id}/snooze`, { days }),
+  dismiss: (id: number) => post<ContactScheduleItem>(`/contact-schedule/${id}/dismiss`, {}),
 }
 
 // — MCP tokens —

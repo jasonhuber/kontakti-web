@@ -41,6 +41,10 @@ class ContactQuizService
             'template'  => 'Anything memorable about {name}?',
             'responses' => [], // free-form
         ],
+        'contact_cadence' => [
+            'template'  => 'How often do you want to stay in touch with {name}?',
+            'responses' => ['Monthly', 'Every 3 months', 'Twice a year', 'Once a year', 'Only on birthday', "Don't remind me"],
+        ],
     ];
 
     /**
@@ -170,6 +174,27 @@ class ContactQuizService
                     $existing = trim((string) $person->notes);
                     $merged = $existing === '' ? $line : ($existing . "\n\n" . $line);
                     $person->forceFill(['notes' => $merged])->save();
+                    break;
+
+                case 'contact_cadence':
+                    $choice = strtolower(trim($structured['choice'] ?? $answer));
+                    // [cadence, birthday-flag override (null = leave as-is)]
+                    [$cadence, $bday] = match (true) {
+                        str_contains($choice, 'birthday')                                  => ['none', true],
+                        str_contains($choice, "don't") || str_contains($choice, 'never')   => ['none', false],
+                        str_contains($choice, 'twice') || str_contains($choice, '6') || str_contains($choice, 'six') => ['biannual', null],
+                        str_contains($choice, '3') || str_contains($choice, 'three') || str_contains($choice, 'quarter') => ['quarterly', null],
+                        str_contains($choice, 'month')                                     => ['monthly', null],
+                        str_contains($choice, 'year') || str_contains($choice, 'annual')   => ['annual', null],
+                        default                                                            => ['biannual', null],
+                    };
+                    $meta = $person->metadata ?? [];
+                    $meta['cadence_set'] = true;
+                    $updates = ['contact_cadence' => $cadence, 'metadata' => $meta];
+                    if ($bday !== null) {
+                        $updates['contact_on_birthday'] = $bday;
+                    }
+                    $person->forceFill($updates)->save();
                     break;
             }
         });
@@ -320,7 +345,14 @@ class ContactQuizService
             return 'last_recall';
         }
 
-        // 5. Otherwise, fish for something memorable.
+        // 5. If we haven't explicitly captured how often to stay in touch, ask cadence.
+        //    (The column defaults to 'biannual', so we track explicit capture via
+        //    a metadata flag rather than a null check.)
+        if (empty($person->metadata['cadence_set'])) {
+            return 'contact_cadence';
+        }
+
+        // 6. Otherwise, fish for something memorable.
         return 'notable';
     }
 

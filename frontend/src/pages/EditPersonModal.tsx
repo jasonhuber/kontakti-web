@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  people,
-  type Person, type RelationshipStrength,
+  people, contactSchedule,
+  type Person, type RelationshipStrength, type ContactCadence,
   type PersonEmail, type PersonPhone,
 } from '@/lib/api'
 import { X, Loader2, Instagram, Facebook, Twitter, MessageCircle } from 'lucide-react'
@@ -74,6 +74,14 @@ const STRENGTHS: { value: RelationshipStrength; label: string }[] = [
   { value: 'close', label: 'Close' },
 ]
 
+const CADENCES: { value: ContactCadence; label: string }[] = [
+  { value: 'monthly',   label: 'Monthly' },
+  { value: 'quarterly', label: 'Every 3 months' },
+  { value: 'biannual',  label: 'Twice a year' },
+  { value: 'annual',    label: 'Once a year' },
+  { value: 'none',      label: 'No reminders' },
+]
+
 export function EditPersonModal({ person, onClose }: Props) {
   const queryClient = useQueryClient()
   const [firstName, setFirstName] = useState(person.first_name)
@@ -87,6 +95,11 @@ export function EditPersonModal({ person, onClose }: Props) {
     person.next_followup_at ? person.next_followup_at.slice(0, 10) : ''
   )
   const [notes, setNotes]         = useState(person.notes ?? '')
+
+  // Stay-in-touch cadence
+  const [cadence, setCadence]     = useState<ContactCadence>(person.contact_cadence ?? 'biannual')
+  const [onBirthday, setOnBirthday] = useState(person.contact_on_birthday ?? true)
+  const [onHolidays, setOnHolidays] = useState(person.contact_on_holidays ?? false)
 
   // Social handles
   const [instagram, setInstagram] = useState(person.instagram_handle ?? '')
@@ -160,6 +173,9 @@ export function EditPersonModal({ person, onClose }: Props) {
       linkedin_url: linkedinUrl.trim() || undefined,
       relationship_strength: strength,
       next_followup_at: followup || undefined,
+      contact_cadence: cadence,
+      contact_on_birthday: onBirthday,
+      contact_on_holidays: onHolidays,
       notes: notes.trim() || undefined,
       // Social
       instagram_handle:   normalizeHandle(instagram) || undefined,
@@ -181,6 +197,11 @@ export function EditPersonModal({ person, onClose }: Props) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['people'] })
       queryClient.invalidateQueries({ queryKey: ['person', person.id] })
+      // Refresh the precomputed timeline so the new cadence takes effect now,
+      // not on the next nightly rebuild. Best-effort — don't block the close.
+      contactSchedule.rebuild()
+        .then(() => queryClient.invalidateQueries({ queryKey: ['reach-out-suggestions'] }))
+        .catch(() => undefined)
       onClose()
     },
     onError: (err) => setError(err instanceof Error ? err.message : 'Failed to save'),
@@ -278,6 +299,30 @@ export function EditPersonModal({ person, onClose }: Props) {
               <label className="block text-xs font-medium text-zinc-500 mb-1.5">Follow-up date</label>
               <input type="date" value={followup} onChange={e => setFollowup(e.target.value)}
                 className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+            </div>
+
+            {/* Stay in touch — drives the precomputed reach-out reminders */}
+            <div className="pt-3 border-t border-zinc-100">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Stay in touch</h3>
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">How often to reach out</label>
+                  <select value={cadence} onChange={e => setCadence(e.target.value as ContactCadence)}
+                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+                    {CADENCES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
+                </div>
+                <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                  <input type="checkbox" checked={onBirthday} onChange={e => setOnBirthday(e.target.checked)}
+                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-400" />
+                  Remind me on their birthday
+                </label>
+                <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                  <input type="checkbox" checked={onHolidays} onChange={e => setOnHolidays(e.target.checked)}
+                    className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-400" />
+                  Remind me around the holidays
+                </label>
+              </div>
             </div>
 
             <div>
