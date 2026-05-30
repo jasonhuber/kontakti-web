@@ -57,7 +57,7 @@ if ! $BACKEND_ONLY; then
   npm run build
 
   echo "→ Deploying SPA to $REMOTE_PUBLIC/app/..."
-  "${SSH_CMD[@]}" "$USER@$HOST" "mkdir -p ~/$REMOTE_PUBLIC/app"
+  "${SSH_CMD[@]}" "$USER@$HOST" "mkdir -p ~/$REMOTE_PUBLIC/app && chmod 755 ~/$REMOTE_PUBLIC/app"
   rsync -avz --delete \
     -e "$RSYNC_RSH" \
     --exclude='.DS_Store' \
@@ -117,6 +117,18 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteRule ^app(/.*)?$ /app/index.html [L]
 HTACCESS
 fi
+
+# ── Normalize web-served permissions ──────────────────────────────────────────
+# LiteSpeed needs the docroot traversable (dirs 755) and files readable (644).
+# rsync -a preserves source perms, and macOS/Dropbox files can arrive as 600/700;
+# a 700 docroot makes LiteSpeed 404 EVERY file (static + PHP). Normalize on every
+# deploy so the site can never be left unservable. Symlinks (photos) are skipped.
+echo "→ Normalizing public_html permissions (755 dirs / 644 files)..."
+"${SSH_CMD[@]}" "$USER@$HOST" "
+  chmod 755 ~/$REMOTE_PUBLIC
+  find ~/$REMOTE_PUBLIC -type d -exec chmod 755 {} +
+  find ~/$REMOTE_PUBLIC -type f -exec chmod 644 {} +
+"
 
 echo ""
 echo "✅ Deployed. https://kontakti.app"

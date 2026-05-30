@@ -30,7 +30,7 @@ class McpController extends Controller
 
     private const WRITE_TOOLS = [
         'log_discussion', 'update_person', 'create_followup_task',
-        'mark_contact_reviewed', 'add_note',
+        'mark_contact_reviewed', 'add_note', 'bulk_review_imports',
     ];
 
     // ── JSON-RPC handler ────────────────────────────────────────────────────
@@ -147,6 +147,9 @@ class McpController extends Controller
                 'create_followup_task'     => $this->toolCreateFollowupTask($args),
                 'mark_contact_reviewed'    => $this->toolMarkContactReviewed($args),
                 'add_note'                 => $this->toolAddNote($args),
+                'bulk_review_imports'      => $this->toolBulkReviewImports($args),
+                'suggest_who_to_introduce' => $this->toolSuggestWhoToIntroduce($args),
+                'draft_check_in_message'   => $this->toolDraftCheckInMessage($args),
                 default => throw new \InvalidArgumentException("Unknown tool: {$name}"),
             };
         } catch (\InvalidArgumentException $e) {
@@ -566,6 +569,167 @@ class McpController extends Controller
         return "✓ Added note to {$person->full_name} (note ID: {$note->id}).";
     }
 
+    // ── Phase 3: agentic tools ───────────────────────────────────────────────
+
+    /**
+     * Lists imported-but-unreviewed contacts (preview), or — with apply:true and
+     * a person_ids list — bulk-marks the given contacts reviewed. Every query is
+     * rooted at auth()->user(), and apply intersects the requested IDs with the
+     * user's own rows so a forged ID can never touch another tenant.
+     */
+    private function toolBulkReviewImports(array $args): string
+    {
+        $apply = (bool)($args['apply'] ?? false);
+
+        // Unreviewed imports = needs_review flag set, or imported and never reviewed.
+        $base = auth()->user()->people()
+            ->where(fn($q) => $q
+                ->where('needs_review', true)
+                ->orWhere(fn($q2) => $q2
+                    ->whereNull('reviewed_at')
+                    ->whereRaw("JSON_EXTRACT(metadata, '$.import_source') IS NOT NULL")
+                )
+            );
+
+        if (!$apply) {
+            $limit  = min((int)($args['limit'] ?? 20), 50);
+            $people = (clone $base)->orderBy('created_at')->limit($limit)->get();
+            $total  = (clone $base)->count();
+
+            if ($people->isEmpty()) {
+                return 'No imported contacts are awaiting review.';
+            }
+
+            $lines = ["{$total} contact(s) awaiting review. Showing first {$people->count()}:\n"];
+            foreach ($people as $p) {
+                $flags = [];
+                if (empty($p->first_name)) $flags[] = 'no first name';
+                if (empty($p->last_name))  $flags[] = 'no last name';
+                if (empty($p->email) && empty($p->phone)) $flags[] = 'no email/phone';
+                $src = $p->metadata['import_source'] ?? 'import';
+                $lines[] = "• {$p->full_name} (ID: {$p->id}) — from {$src}"
+                    . ($flags ? ' [' . implode(', ', $flags) . ']' : '');
+            }
+            $lines[] = "\nTo mark some reviewed, call again with apply:true and "
+                . "person_ids: [...] containing the IDs to clear.";
+            return implode("\n", $lines);
+        }
+
+        // apply=true — require an explicit list; never bulk-clear everything implicitly.
+        $ids = $args['person_ids'] ?? null;
+        if (!is_array($ids) || count($ids) === 0) {
+            throw new \InvalidArgumentException('person_ids (a non-empty array) is required when apply is true.');
+        }
+
+        // Intersect requested IDs with the user's own unreviewed rows — this is the
+        // tenant-isolation guard: only rows owned by the caller can be touched.
+        $matched = (clone $base)->whereIn('id', $ids)->get();
+        if ($matched->isEmpty()) {
+            return 'None of the given IDs match your contacts awaiting review (nothing changed).';
+        }
+
+        $matchedIds = $matched->pluck('id')->all();
+        auth()->user()->people()->whereIn('id', $matchedIds)
+            ->update(['needs_review' => false, 'reviewed_at' => now()]);
+
+        $names = $matched->map(fn($p) => $p->full_name)->take(10)->implode(', ');
+        $extra = $matched->count() > 10 ? ' …' : '';
+        $skipped = count($ids) - $matched->count();
+        return "✓ Marked {$matched->count()} contact(s) reviewed: {$names}{$extra}."
+            . ($skipped > 0 ? " ({$skipped} ID(s) ignored — not yours or not pending.)" : '');
+    }
+
+    /**
+     * Heuristic introduction suggestions among the caller's own contacts: people
+     * who share a city or a tag but work at different companies (colleagues are
+     * skipped). Read-only.
+     */
+    private function toolSuggestWhoToIntroduce(array $args): string
+    {
+        $limit = min((int)($args['limit'] ?? 5), 15);
+
+        $people = auth()->user()->people()
+            ->where('do_not_contact', false)
+            ->with('tags')
+            ->get(['id', 'first_name', 'last_name', 'company_id', 'city']);
+
+        if ($people->count() < 2) {
+            return 'Not enough contacts to suggest introductions yet.';
+        }
+
+        $diffCompany = fn($a, $b) => empty($a->company_id) || empty($b->company_id) || $a->company_id !== $b->company_id;
+        $pairs = [];   // keyed by "idA|idB" (sorted) to dedupe
+        $add = function ($a, $b, $reason) use (&$pairs, $diffCompany) {
+            if ($a->id === $b->id || !$diffCompany($a, $b)) return;
+            $key = $a->id < $b->id ? "{$a->id}|{$b->id}" : "{$b->id}|{$a->id}";
+            if (!isset($pairs[$key])) {
+                $pairs[$key] = [$a->full_name, $b->full_name, $reason];
+            }
+        };
+
+        // Group by city.
+        $byCity = $people->filter(fn($p) => filled($p->city))
+            ->groupBy(fn($p) => mb_strtolower(trim($p->city)));
+        foreach ($byCity as $city => $group) {
+            $vals = $group->values();
+            for ($i = 0; $i < $vals->count(); $i++) {
+                for ($j = $i + 1; $j < $vals->count(); $j++) {
+                    $add($vals[$i], $vals[$j], "both in " . trim($vals[$i]->city));
+                }
+            }
+        }
+
+        // Group by shared tag.
+        $byTag = [];
+        foreach ($people as $p) {
+            foreach ($p->tags as $tag) {
+                $byTag[$tag->slug] ??= ['name' => $tag->name, 'people' => []];
+                $byTag[$tag->slug]['people'][] = $p;
+            }
+        }
+        foreach ($byTag as $slug => $bucket) {
+            $vals = $bucket['people'];
+            for ($i = 0; $i < count($vals); $i++) {
+                for ($j = $i + 1; $j < count($vals); $j++) {
+                    $add($vals[$i], $vals[$j], "both tagged \"{$bucket['name']}\"");
+                }
+            }
+        }
+
+        if (empty($pairs)) {
+            return 'No natural introductions found — try adding cities or tags to your contacts.';
+        }
+
+        $pairs = array_slice(array_values($pairs), 0, $limit);
+        $lines = ["Suggested introductions (" . count($pairs) . "):\n"];
+        foreach ($pairs as [$a, $b, $reason]) {
+            $lines[] = "• {$a} ↔ {$b} — {$reason}";
+        }
+        $lines[] = "\nThese are heuristic suggestions; you decide whether to make the intro.";
+        return implode("\n", $lines);
+    }
+
+    /**
+     * Drafts (does NOT send) a check-in message for a contact, reusing the same
+     * MessageDrafter the Today inbox uses. Respects do-not-contact. Read-only.
+     */
+    private function toolDraftCheckInMessage(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        try {
+            $draft = app(\App\Services\MessageDrafter::class)->draft($person, 'cadence_overdue');
+        } catch (\RuntimeException $e) {
+            // do-not-contact or drafter refusal — surface the reason, write nothing.
+            return "Can't draft a message: " . $e->getMessage();
+        }
+
+        return "Draft check-in for {$person->full_name} (NOT sent — copy/edit as you like):\n\n{$draft}";
+    }
+
     // ── Tool schema definitions ──────────────────────────────────────────────
 
     private function tools(): array
@@ -727,6 +891,41 @@ class McpController extends Controller
                         'apply'     => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a preview'],
                     ],
                     'required' => ['person_id', 'body'],
+                ],
+            ],
+
+            // ── Phase 3: agentic ──
+            [
+                'name'        => 'bulk_review_imports',
+                'description' => 'List imported contacts awaiting review (preview). With apply=true and person_ids, bulk-marks those contacts reviewed. Only your own contacts can be affected.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'limit'      => ['type' => 'integer', 'description' => 'Max contacts to list in preview (default 20)'],
+                        'person_ids' => ['type' => 'array', 'items' => ['type' => 'string'], 'description' => 'Contact UUIDs to mark reviewed (required when apply=true)'],
+                        'apply'      => ['type' => 'boolean', 'description' => 'Set true to commit the bulk review; otherwise returns the pending list'],
+                    ],
+                ],
+            ],
+            [
+                'name'        => 'suggest_who_to_introduce',
+                'description' => 'Suggests pairs of your contacts who might benefit from an introduction, based on shared city or tags (colleagues at the same company are skipped). Read-only.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'limit' => ['type' => 'integer', 'description' => 'Max suggestions (default 5, max 15)'],
+                    ],
+                ],
+            ],
+            [
+                'name'        => 'draft_check_in_message',
+                'description' => 'Drafts a check-in message for a contact using their relationship context. Returns text only — it never sends anything. Respects do-not-contact.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id' => ['type' => 'string', 'description' => 'Contact UUID'],
+                    ],
+                    'required' => ['person_id'],
                 ],
             ],
         ];
