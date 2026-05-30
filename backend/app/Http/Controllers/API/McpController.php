@@ -3,14 +3,22 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
+use App\Models\{Person, Discussion, Note, Task, ActivityFeedItem};
 use Illuminate\Http\{Request, JsonResponse};
 use Illuminate\Support\Facades\DB;
 
 /**
- * MCP-over-HTTP server (Phase 1 — read-only).
+ * MCP-over-HTTP server.
  *
- * Speaks JSON-RPC 2.0. Clients pass a Bearer token that has the
- * 'mcp:read' ability (or the wildcard '*' that normal app tokens carry).
+ * Speaks JSON-RPC 2.0. Clients pass a Bearer token. Tokens carry abilities:
+ *  - 'mcp:read'  — read tools (search, get, lists, health).
+ *  - 'mcp:write' — write tools (log_discussion, update_person, …).
+ * Normal app tokens carry the wildcard '*' and can do both.
+ *
+ * Write tools follow a diff-then-confirm protocol: every write tool defaults
+ * to a dry run that returns a preview of the change and applies nothing. The
+ * caller re-invokes with `apply: true` to commit. This keeps a human in the
+ * loop for every mutation.
  *
  * Configure in Claude Desktop / Claude Code:
  *   { "type": "http", "url": "https://kontakti.app/api/v1/mcp",
@@ -19,6 +27,11 @@ use Illuminate\Support\Facades\DB;
 class McpController extends Controller
 {
     private const PROTOCOL_VERSION = '2024-11-05';
+
+    private const WRITE_TOOLS = [
+        'log_discussion', 'update_person', 'create_followup_task',
+        'mark_contact_reviewed', 'add_note',
+    ];
 
     // ── JSON-RPC handler ────────────────────────────────────────────────────
 
@@ -64,12 +77,19 @@ class McpController extends Controller
     public function createToken(Request $request): JsonResponse
     {
         $name = $request->input('name', 'mcp-' . now()->format('Ymd'));
-        $pat  = auth()->user()->createToken($name, ['mcp:read']);
+
+        // Read+write by default; pass read_only=true to mint a read-only token.
+        $abilities = $request->boolean('read_only')
+            ? ['mcp:read']
+            : ['mcp:read', 'mcp:write'];
+
+        $pat = auth()->user()->createToken($name, $abilities);
 
         return response()->json([
             'token'      => $pat->plainTextToken,
             'id'         => $pat->accessToken->id,
             'name'       => $name,
+            'abilities'  => $abilities,
             'created_at' => $pat->accessToken->created_at->toIso8601String(),
         ], 201);
     }
@@ -107,6 +127,12 @@ class McpController extends Controller
         $name = $params['name'] ?? '';
         $args = $params['arguments'] ?? [];
 
+        // Write tools require the 'mcp:write' ability. Read-only tokens are rejected.
+        if (in_array($name, self::WRITE_TOOLS, true) && !auth()->user()->tokenCan('mcp:write')) {
+            return $this->rpcError($id, -32604,
+                "This token is read-only. The tool '{$name}' needs write access — mint a read+write MCP token in Settings.");
+        }
+
         try {
             $text = match ($name) {
                 'search_contacts'          => $this->toolSearchContacts($args),
@@ -116,10 +142,17 @@ class McpController extends Controller
                 'find_overdue_followups'   => $this->toolFindOverdueFollowups($args),
                 'get_contact_health'       => $this->toolGetContactHealth(),
                 'who_should_i_reconnect_with' => $this->toolWhoToReconnect($args),
+                'log_discussion'           => $this->toolLogDiscussion($args),
+                'update_person'            => $this->toolUpdatePerson($args),
+                'create_followup_task'     => $this->toolCreateFollowupTask($args),
+                'mark_contact_reviewed'    => $this->toolMarkContactReviewed($args),
+                'add_note'                 => $this->toolAddNote($args),
                 default => throw new \InvalidArgumentException("Unknown tool: {$name}"),
             };
         } catch (\InvalidArgumentException $e) {
             return $this->rpcError($id, -32602, $e->getMessage());
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return $this->rpcError($id, -32602, 'Record not found (check the ID and that it belongs to you).');
         } catch (\Exception $e) {
             return $this->rpcError($id, -32603, 'Tool execution failed: ' . $e->getMessage());
         }
@@ -320,6 +353,219 @@ class McpController extends Controller
         return implode("\n", $lines);
     }
 
+    // ── Write tools (diff-then-confirm) ──────────────────────────────────────
+
+    private function toolLogDiscussion(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        $title    = trim((string)($args['title'] ?? ''));
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+        if ($title === '') throw new \InvalidArgumentException('title is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        $type = $args['type'] ?? 'other';
+        $allowed = ['call', 'meeting', 'email', 'message', 'event', 'other'];
+        if (!in_array($type, $allowed, true)) {
+            throw new \InvalidArgumentException('type must be one of: ' . implode(', ', $allowed));
+        }
+        $date    = !empty($args['date']) ? \Carbon\Carbon::parse($args['date']) : now();
+        $summary = $args['summary'] ?? null;
+        $apply   = (bool)($args['apply'] ?? false);
+
+        $preview = [
+            "Log a {$type} discussion with {$person->full_name}:",
+            "  Title:   {$title}",
+            "  Date:    " . $date->format('Y-m-d'),
+            $summary ? "  Summary: {$summary}" : "  Summary: (none)",
+            "  Also updates {$person->full_name}'s last-contacted date to {$date->format('Y-m-d')}.",
+        ];
+
+        if (!$apply) {
+            return $this->dryRun($preview);
+        }
+
+        $discussion = Discussion::create([
+            'user_id' => auth()->id(),
+            'title'   => $title,
+            'date'    => $date,
+            'type'    => $type,
+            'summary' => $summary,
+        ]);
+        $discussion->participants()->attach($person->id);
+
+        if (is_null($person->last_contacted_at) || $person->last_contacted_at->lt($date)) {
+            $person->update(['last_contacted_at' => $date]);
+        }
+        ActivityFeedItem::log('discussion', $discussion->id, 'created');
+
+        return "✓ Logged discussion \"{$title}\" with {$person->full_name} (ID: {$discussion->id}).";
+    }
+
+    private function toolUpdatePerson(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        // Whitelisted scalar fields only — relational/contact-table edits go
+        // through the full app to keep this surface safe.
+        $editable = [
+            'first_name', 'last_name', 'nickname', 'email', 'phone', 'title',
+            'job_department', 'relationship_strength', 'notes', 'linkedin_url',
+            'next_followup_at', 'birthday', 'city', 'region', 'country', 'how_we_met',
+        ];
+        $strengths = ['cold', 'warm', 'hot', 'close'];
+
+        $changes = [];
+        foreach ($editable as $field) {
+            if (!array_key_exists($field, $args)) continue;
+            $new = $args[$field];
+            if ($field === 'relationship_strength' && !in_array($new, $strengths, true)) {
+                throw new \InvalidArgumentException('relationship_strength must be one of: ' . implode(', ', $strengths));
+            }
+            $old = $person->getAttribute($field);
+            $oldStr = $this->scalarToString($old);
+            $newStr = $this->scalarToString($new);
+            if ($oldStr !== $newStr) {
+                $changes[$field] = [$oldStr, $newStr, $new];
+            }
+        }
+
+        if (empty($changes)) {
+            return "No changes — every provided field already matches {$person->full_name}.";
+        }
+
+        $apply   = (bool)($args['apply'] ?? false);
+        $preview = ["Update {$person->full_name} (ID: {$person->id}):"];
+        foreach ($changes as $field => [$oldStr, $newStr]) {
+            $preview[] = "  {$field}: " . ($oldStr === '' ? '(empty)' : $oldStr) . " → " . ($newStr === '' ? '(empty)' : $newStr);
+        }
+
+        if (!$apply) {
+            return $this->dryRun($preview);
+        }
+
+        $person->update(array_map(fn($c) => $c[2], $changes));
+        ActivityFeedItem::log('person', $person->id, 'updated');
+
+        return "✓ Updated {$person->full_name}: " . implode(', ', array_keys($changes)) . '.';
+    }
+
+    private function toolCreateFollowupTask(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        $title    = trim((string)($args['title'] ?? ''));
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+        if ($title === '') throw new \InvalidArgumentException('title is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        $priority = $args['priority'] ?? 'medium';
+        $allowed  = ['low', 'medium', 'high', 'urgent'];
+        if (!in_array($priority, $allowed, true)) {
+            throw new \InvalidArgumentException('priority must be one of: ' . implode(', ', $allowed));
+        }
+        $dueAt = !empty($args['due_at']) ? \Carbon\Carbon::parse($args['due_at']) : null;
+        $desc  = $args['description'] ?? null;
+        $apply = (bool)($args['apply'] ?? false);
+
+        // A follow-up task also pulls the person's next_followup_at forward when
+        // the new due date is sooner (or none is set).
+        $setsFollowup = $dueAt && (is_null($person->next_followup_at) || $person->next_followup_at->gt($dueAt));
+
+        $preview = [
+            "Create a {$priority}-priority follow-up task for {$person->full_name}:",
+            "  Title:    {$title}",
+            "  Due:      " . ($dueAt ? $dueAt->format('Y-m-d') : '(no due date)'),
+            $desc ? "  Details:  {$desc}" : "  Details:  (none)",
+        ];
+        if ($setsFollowup) {
+            $preview[] = "  Also sets {$person->full_name}'s next follow-up to {$dueAt->format('Y-m-d')}.";
+        }
+
+        if (!$apply) {
+            return $this->dryRun($preview);
+        }
+
+        $task = Task::create([
+            'user_id'       => auth()->id(),
+            'title'         => $title,
+            'description'   => $desc,
+            'due_at'        => $dueAt,
+            'priority'      => $priority,
+            'taskable_type' => Person::class,
+            'taskable_id'   => $person->id,
+        ]);
+        if ($setsFollowup) {
+            $person->update(['next_followup_at' => $dueAt]);
+        }
+
+        return "✓ Created follow-up task \"{$title}\" for {$person->full_name} (ID: {$task->id}).";
+    }
+
+    private function toolMarkContactReviewed(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        if (!$person->needs_review && $person->reviewed_at) {
+            return "{$person->full_name} is already marked reviewed (on " . substr($person->reviewed_at, 0, 10) . ").";
+        }
+
+        $apply = (bool)($args['apply'] ?? false);
+        $preview = [
+            "Mark {$person->full_name} (ID: {$person->id}) as reviewed:",
+            "  needs_review: " . ($person->needs_review ? 'true' : 'false') . " → false",
+            "  reviewed_at:  " . ($person->reviewed_at ? substr($person->reviewed_at, 0, 10) : '(unset)') . " → " . now()->format('Y-m-d'),
+        ];
+
+        if (!$apply) {
+            return $this->dryRun($preview);
+        }
+
+        $person->update(['needs_review' => false, 'reviewed_at' => now()]);
+
+        return "✓ Marked {$person->full_name} as reviewed.";
+    }
+
+    private function toolAddNote(array $args): string
+    {
+        $personId = $args['person_id'] ?? '';
+        $body     = trim((string)($args['body'] ?? ''));
+        if (!$personId) throw new \InvalidArgumentException('person_id is required');
+        if ($body === '') throw new \InvalidArgumentException('body is required');
+
+        $person = auth()->user()->people()->findOrFail($personId);
+
+        $titleArg = $args['title'] ?? null;
+        $apply    = (bool)($args['apply'] ?? false);
+
+        $excerpt = strlen($body) > 120 ? substr($body, 0, 120) . '…' : $body;
+        $preview = [
+            "Add a note to {$person->full_name} (ID: {$person->id}):",
+            $titleArg ? "  Title: {$titleArg}" : "  Title: (none)",
+            "  Body:  {$excerpt}",
+        ];
+
+        if (!$apply) {
+            return $this->dryRun($preview);
+        }
+
+        $note = Note::create([
+            'user_id'      => auth()->id(),
+            'title'        => $titleArg,
+            'body'         => $body,
+            'notable_type' => Person::class,
+            'notable_id'   => $person->id,
+        ]);
+
+        return "✓ Added note to {$person->full_name} (note ID: {$note->id}).";
+    }
+
     // ── Tool schema definitions ──────────────────────────────────────────────
 
     private function tools(): array
@@ -395,10 +641,115 @@ class McpController extends Controller
                     ],
                 ],
             ],
+
+            // ── Write tools — all default to a dry run; pass apply:true to commit ──
+            [
+                'name'        => 'log_discussion',
+                'description' => 'Log a discussion (call/meeting/email/etc.) with a contact and update their last-contacted date. Returns a preview unless apply=true.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id' => ['type' => 'string', 'description' => 'Contact UUID'],
+                        'title'     => ['type' => 'string', 'description' => 'Short title for the discussion'],
+                        'type'      => ['type' => 'string', 'enum' => ['call', 'meeting', 'email', 'message', 'event', 'other'], 'description' => 'Discussion type (default other)'],
+                        'summary'   => ['type' => 'string', 'description' => 'What was discussed'],
+                        'date'      => ['type' => 'string', 'description' => 'ISO date (default today)'],
+                        'apply'     => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a preview'],
+                    ],
+                    'required' => ['person_id', 'title'],
+                ],
+            ],
+            [
+                'name'        => 'update_person',
+                'description' => 'Update scalar fields on a contact (name, email, phone, title, relationship_strength, notes, next_followup_at, etc.). Returns a field-level diff unless apply=true.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id'             => ['type' => 'string', 'description' => 'Contact UUID'],
+                        'first_name'            => ['type' => 'string'],
+                        'last_name'             => ['type' => 'string'],
+                        'nickname'              => ['type' => 'string'],
+                        'email'                 => ['type' => 'string'],
+                        'phone'                 => ['type' => 'string'],
+                        'title'                 => ['type' => 'string'],
+                        'job_department'        => ['type' => 'string'],
+                        'relationship_strength' => ['type' => 'string', 'enum' => ['cold', 'warm', 'hot', 'close']],
+                        'notes'                 => ['type' => 'string'],
+                        'linkedin_url'          => ['type' => 'string'],
+                        'next_followup_at'      => ['type' => 'string', 'description' => 'ISO date/datetime'],
+                        'birthday'              => ['type' => 'string', 'description' => 'ISO date'],
+                        'city'                  => ['type' => 'string'],
+                        'region'                => ['type' => 'string'],
+                        'country'               => ['type' => 'string'],
+                        'how_we_met'            => ['type' => 'string'],
+                        'apply'                 => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a diff'],
+                    ],
+                    'required' => ['person_id'],
+                ],
+            ],
+            [
+                'name'        => 'create_followup_task',
+                'description' => 'Create a follow-up task linked to a contact (and pull their next-follow-up date forward if sooner). Returns a preview unless apply=true.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id'   => ['type' => 'string', 'description' => 'Contact UUID'],
+                        'title'       => ['type' => 'string', 'description' => 'Task title'],
+                        'description' => ['type' => 'string'],
+                        'due_at'      => ['type' => 'string', 'description' => 'ISO date/datetime'],
+                        'priority'    => ['type' => 'string', 'enum' => ['low', 'medium', 'high', 'urgent'], 'description' => 'Default medium'],
+                        'apply'       => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a preview'],
+                    ],
+                    'required' => ['person_id', 'title'],
+                ],
+            ],
+            [
+                'name'        => 'mark_contact_reviewed',
+                'description' => 'Clear the needs-review flag on a contact and stamp reviewed_at. Returns a preview unless apply=true.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id' => ['type' => 'string', 'description' => 'Contact UUID'],
+                        'apply'     => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a preview'],
+                    ],
+                    'required' => ['person_id'],
+                ],
+            ],
+            [
+                'name'        => 'add_note',
+                'description' => 'Attach a note to a contact. Returns a preview unless apply=true.',
+                'inputSchema' => [
+                    'type'       => 'object',
+                    'properties' => [
+                        'person_id' => ['type' => 'string', 'description' => 'Contact UUID'],
+                        'body'      => ['type' => 'string', 'description' => 'Note body'],
+                        'title'     => ['type' => 'string', 'description' => 'Optional note title'],
+                        'apply'     => ['type' => 'boolean', 'description' => 'Set true to commit; otherwise returns a preview'],
+                    ],
+                    'required' => ['person_id', 'body'],
+                ],
+            ],
         ];
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
+
+    /** Formats a dry-run preview and tells the caller how to commit. */
+    private function dryRun(array $lines): string
+    {
+        return "PREVIEW (nothing saved yet):\n" . implode("\n", $lines)
+            . "\n\nTo apply this change, call the same tool again with \"apply\": true.";
+    }
+
+    /** Normalizes a scalar/date attribute to a comparable string for diffs. */
+    private function scalarToString(mixed $value): string
+    {
+        if ($value === null) return '';
+        if (is_bool($value)) return $value ? 'true' : 'false';
+        if ($value instanceof \DateTimeInterface) return $value->format('Y-m-d');
+        if ($value instanceof \Carbon\CarbonInterface) return $value->format('Y-m-d');
+        return trim((string)$value);
+    }
 
     private function personSummary(mixed $p, bool $detailed = false): string
     {

@@ -713,7 +713,11 @@ export interface McpToken {
 }
 export const mcp = {
   listTokens: () => get<McpToken[]>('/mcp/tokens'),
-  createToken: (name?: string) => post<{ token: string; id: number; name: string }>('/mcp/tokens', { name: name ?? 'mcp-' + new Date().toISOString().slice(0, 10) }),
+  createToken: (name?: string, readOnly = false) =>
+    post<{ token: string; id: number; name: string; abilities: string[] }>('/mcp/tokens', {
+      name: name ?? 'mcp-' + new Date().toISOString().slice(0, 10),
+      read_only: readOnly,
+    }),
   revokeToken: (id: number) => del(`/mcp/tokens/${id}`),
 }
 

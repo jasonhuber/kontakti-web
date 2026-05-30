@@ -11,6 +11,7 @@ import {
   Loader2, Mail, Star, Trash2, AlertCircle, Plus, Bell, BellOff,
   Cpu, Copy, Check,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import {
   isPushSupported, getNotificationPermission, getSubscription,
   subscribeToPush, unsubscribeFromPush, getVapidPublicKey,
@@ -522,6 +523,7 @@ function McpTokensSection() {
   const [newTokenValue, setNewTokenValue] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+  const [readOnly, setReadOnly] = useState(false)
 
   const { data: tokens, isLoading } = useQuery({
     queryKey: ['mcp-tokens'],
@@ -529,7 +531,7 @@ function McpTokensSection() {
   })
 
   const createMut = useMutation({
-    mutationFn: () => mcp.createToken(),
+    mutationFn: () => mcp.createToken(undefined, readOnly),
     onSuccess: (r) => {
       setNewTokenValue(r.token)
       setCreateError(null)
@@ -560,7 +562,8 @@ function McpTokensSection() {
           MCP access tokens
         </h2>
         <p className="text-xs text-zinc-500 mt-0.5">
-          Create tokens for Claude Code, Claude Desktop, or Cursor to read your contacts via MCP.
+          Create tokens for Claude Code, Claude Desktop, or Cursor to read and update your contacts via MCP.
+          Write actions always preview the change before applying.
         </p>
       </div>
 
@@ -579,7 +582,17 @@ function McpTokensSection() {
           {tokens.map((t: McpToken) => (
             <div key={t.id} className="flex items-center gap-3 border border-zinc-200 rounded-xl px-3 py-2">
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-zinc-800 truncate">{t.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-zinc-800 truncate">{t.name}</p>
+                  <span className={cn(
+                    'text-[10px] font-medium px-1.5 py-0.5 rounded-full border shrink-0',
+                    t.abilities?.includes('mcp:write') || t.abilities?.includes('*')
+                      ? 'bg-amber-50 text-amber-700 border-amber-100'
+                      : 'bg-zinc-100 text-zinc-500 border-zinc-200'
+                  )}>
+                    {t.abilities?.includes('mcp:write') || t.abilities?.includes('*') ? 'read + write' : 'read-only'}
+                  </span>
+                </div>
                 <p className="text-xs text-zinc-400">
                   Created {new Date(t.created_at).toLocaleDateString()}
                   {t.last_used_at ? ` · last used ${new Date(t.last_used_at).toLocaleDateString()}` : ' · never used'}
@@ -632,14 +645,25 @@ function McpTokensSection() {
         </div>
       )}
 
-      <button
-        onClick={() => createMut.mutate()}
-        disabled={createMut.isPending}
-        className="inline-flex items-center gap-2 text-sm border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
-      >
-        {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
-        {createMut.isPending ? 'Creating…' : 'Create MCP token'}
-      </button>
+      <div className="flex items-center gap-3 flex-wrap">
+        <button
+          onClick={() => createMut.mutate()}
+          disabled={createMut.isPending}
+          className="inline-flex items-center gap-2 text-sm border border-zinc-200 hover:bg-zinc-50 text-zinc-700 font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
+        >
+          {createMut.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          {createMut.isPending ? 'Creating…' : 'Create MCP token'}
+        </button>
+        <label className="inline-flex items-center gap-1.5 text-xs text-zinc-600 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={readOnly}
+            onChange={e => setReadOnly(e.target.checked)}
+            className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-400"
+          />
+          Read-only (no write tools)
+        </label>
+      </div>
     </section>
   )
 }
