@@ -15,7 +15,12 @@ const STRENGTHS: { value: RelationshipStrength | 'all'; label: string }[] = [
   { value: 'cold',  label: 'Cold' },
 ]
 
-export function PeoplePage() {
+interface PeoplePageProps {
+  openPersonId?: string | null
+  onPersonOpened?: () => void
+}
+
+export function PeoplePage({ openPersonId, onPersonOpened }: PeoplePageProps = {}) {
   const qc = useQueryClient()
   const [strength, setStrength] = useState<RelationshipStrength | 'all'>('all')
   const [searchInput, setSearchInput] = useState('')
@@ -38,6 +43,20 @@ export function PeoplePage() {
   const [search, setSearch] = useState('')
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [showAddPerson, setShowAddPerson] = useState(false)
+
+  // Deep-link: open a specific person from search navigation
+  const { data: deepLinkPerson } = useQuery({
+    queryKey: ['person', openPersonId],
+    queryFn: () => people.get(openPersonId!),
+    enabled: !!openPersonId,
+    staleTime: 5_000,
+  })
+  useEffect(() => {
+    if (deepLinkPerson) {
+      setSelectedPerson(deepLinkPerson)
+      onPersonOpened?.()
+    }
+  }, [deepLinkPerson, onPersonOpened])
   const [page, setPage] = useState(1)
   const [allPeople, setAllPeople] = useState<Person[]>([])
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -80,9 +99,9 @@ export function PeoplePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">People</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">People</h1>
           {data && (
-            <p className="text-sm text-zinc-400 mt-0.5">{data.total} contacts</p>
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-0.5">{data.total} contacts</p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -90,7 +109,7 @@ export function PeoplePage() {
             onClick={() => backfillMut.mutate()}
             disabled={backfillMut.isPending}
             title="Fetch LinkedIn profile photos for contacts with a LinkedIn URL but no avatar"
-            className="flex items-center gap-2 text-zinc-600 hover:text-zinc-800 border border-zinc-200 hover:border-zinc-300 text-sm font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
+            className="flex items-center gap-2 text-zinc-600 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200 border border-zinc-200 hover:border-zinc-300 dark:border-zinc-700 dark:hover:border-zinc-600 text-sm font-medium px-3 py-2 rounded-lg transition-colors disabled:opacity-60"
           >
             {backfillMut.isPending
               ? <Loader2 className="w-4 h-4 animate-spin" />
@@ -108,9 +127,9 @@ export function PeoplePage() {
       </div>
 
       {avatarMsg && (
-        <div className="mb-4 flex items-center justify-between gap-2 text-sm text-zinc-600 bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2">
+        <div className="mb-4 flex items-center justify-between gap-2 text-sm text-zinc-600 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-950 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2">
           <span>{avatarMsg}</span>
-          <button onClick={() => setAvatarMsg(null)} className="text-zinc-400 hover:text-zinc-600 text-xs">Dismiss</button>
+          <button onClick={() => setAvatarMsg(null)} className="text-zinc-400 hover:text-zinc-600 dark:text-zinc-500 dark:hover:text-zinc-400 text-xs">Dismiss</button>
         </div>
       )}
 
@@ -121,9 +140,9 @@ export function PeoplePage() {
           placeholder="Search people..."
           value={searchInput}
           onChange={e => setSearchInput(e.target.value)}
-          className="flex-1 min-w-0 max-w-xs text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+          className="flex-1 min-w-0 max-w-xs text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
         />
-        <div className="flex items-center gap-1 bg-zinc-100 rounded-lg p-1">
+        <div className="flex items-center gap-1 bg-zinc-100 dark:bg-zinc-800 rounded-lg p-1">
           {STRENGTHS.map(s => (
             <button
               key={s.value}
@@ -131,8 +150,8 @@ export function PeoplePage() {
               className={cn(
                 'text-xs px-3 py-1.5 rounded-md transition-colors font-medium',
                 strength === s.value
-                  ? 'bg-white text-zinc-900 shadow-sm'
-                  : 'text-zinc-500 hover:text-zinc-700'
+                  ? 'bg-white dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 shadow-sm'
+                  : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
               )}
             >
               {s.label}
@@ -145,7 +164,7 @@ export function PeoplePage() {
       {isLoading && allPeople.length === 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-28 bg-zinc-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-28 bg-zinc-100 dark:bg-zinc-800 rounded-xl animate-pulse" />
           ))}
         </div>
       )}
@@ -181,7 +200,7 @@ export function PeoplePage() {
               <button
                 onClick={() => setPage(p => p + 1)}
                 disabled={isFetching}
-                className="flex items-center gap-2 mx-auto text-sm text-zinc-500 hover:text-zinc-700 border border-zinc-200 hover:border-zinc-300 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
+                className="flex items-center gap-2 mx-auto text-sm text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300 border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 px-4 py-2 rounded-lg transition-colors disabled:opacity-50"
               >
                 {isFetching ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
                 {isFetching ? 'Loading...' : 'Load more'}

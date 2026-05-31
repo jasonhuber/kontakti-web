@@ -39,7 +39,7 @@ function AddTaskRow({ onAdd, isPending }: AddTaskRowProps) {
   }
 
   return (
-    <div className="border border-zinc-200 rounded-xl overflow-hidden">
+    <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
       <div className="flex items-center gap-3 px-4 py-3">
         <Plus className="w-4 h-4 text-zinc-300 shrink-0" />
         <input
@@ -63,7 +63,7 @@ function AddTaskRow({ onAdd, isPending }: AddTaskRowProps) {
       </div>
 
       {open && title && (
-        <div className="flex items-center gap-3 px-4 pb-3 border-t border-zinc-100 pt-3">
+        <div className="flex items-center gap-3 px-4 pb-3 border-t border-zinc-100 dark:border-zinc-800 pt-3">
           <div className="flex gap-1">
             {PRIORITY_OPTIONS.map(p => (
               <button
@@ -83,7 +83,7 @@ function AddTaskRow({ onAdd, isPending }: AddTaskRowProps) {
             type="date"
             value={dueAt}
             onChange={e => setDueAt(e.target.value)}
-            className="text-xs border border-zinc-200 rounded px-2 py-0.5 outline-none focus:border-indigo-400"
+            className="text-xs border border-zinc-200 dark:border-zinc-600 rounded px-2 py-0.5 outline-none focus:border-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
           />
         </div>
       )}
@@ -106,7 +106,7 @@ function TaskRow({ task, onComplete, onReopen, completing, onPersonClick }: Task
 
   return (
     <div className={cn(
-      'flex items-start gap-3 px-4 py-3 group hover:bg-zinc-50 transition-colors rounded-xl',
+      'flex items-start gap-3 px-4 py-3 group hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors rounded-xl',
       isDone && 'opacity-50'
     )}>
       <button
@@ -124,13 +124,13 @@ function TaskRow({ task, onComplete, onReopen, completing, onPersonClick }: Task
 
       <div className="min-w-0 flex-1">
         <span className={cn(
-          'text-sm text-zinc-800',
-          isDone && 'line-through text-zinc-400'
+          'text-sm text-zinc-800 dark:text-zinc-200',
+          isDone && 'line-through text-zinc-400 dark:text-zinc-500'
         )}>
           {task.title}
         </span>
         {task.description && (
-          <p className="text-xs text-zinc-400 mt-0.5 line-clamp-1">{task.description}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-1">{task.description}</p>
         )}
         <div className="flex items-center gap-2 mt-1 flex-wrap">
           <span className={cn('text-xs px-1.5 py-0.5 rounded font-medium capitalize', PRIORITY_COLORS[task.priority])}>
@@ -201,9 +201,9 @@ export function TasksPage() {
     <div className="p-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Tasks</h1>
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Tasks</h1>
           {data && (
-            <p className="text-sm text-zinc-400 mt-0.5">
+            <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-0.5">
               {pending.length} pending{completed.length > 0 ? `, ${completed.length} done` : ''}
             </p>
           )}
@@ -213,7 +213,7 @@ export function TasksPage() {
       {isLoading && (
         <div className="space-y-2">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-14 bg-zinc-100 rounded-xl animate-pulse" />
+            <div key={i} className="h-14 bg-zinc-100 dark:bg-zinc-800 rounded-xl animate-pulse" />
           ))}
         </div>
       )}
@@ -250,7 +250,7 @@ export function TasksPage() {
             <div className="pt-2">
               <button
                 onClick={() => setShowCompleted(v => !v)}
-                className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 hover:text-zinc-600 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
               >
                 {showCompleted ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
                 {completed.length} completed

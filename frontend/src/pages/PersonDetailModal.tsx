@@ -184,9 +184,9 @@ export function PersonDetailModal({ person, onClose }: Props) {
       <div className="fixed inset-0 z-40 bg-black/40" onClick={handleBackdropClick} />
 
       {/* Panel */}
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-lg shrink-0">
               {p.avatar_url
@@ -195,9 +195,9 @@ export function PersonDetailModal({ person, onClose }: Props) {
               }
             </div>
             <div>
-              <h2 className="text-base font-semibold text-zinc-900">{p.full_name}</h2>
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{p.full_name}</h2>
               {(p.title || p.company) && (
-                <p className="text-sm text-zinc-500">
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {[p.title, p.company?.name].filter(Boolean).join(' · ')}
                 </p>
               )}
@@ -233,12 +233,12 @@ export function PersonDetailModal({ person, onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-zinc-100 shrink-0">
+        <div className="flex border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <button
             onClick={() => setTab('overview')}
             className={cn(
               'flex-1 py-2.5 text-xs font-medium transition-colors',
-              tab === 'overview' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 hover:text-zinc-700'
+              tab === 'overview' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             )}
           >
             Overview
@@ -247,7 +247,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
             onClick={() => setTab('interactions')}
             className={cn(
               'flex-1 py-2.5 text-xs font-medium transition-colors',
-              tab === 'interactions' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 hover:text-zinc-700'
+              tab === 'interactions' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             )}
           >
             Interactions
@@ -256,7 +256,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
             onClick={() => setTab('notes')}
             className={cn(
               'flex-1 py-2.5 text-xs font-medium transition-colors',
-              tab === 'notes' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 hover:text-zinc-700'
+              tab === 'notes' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             )}
           >
             Notes
@@ -269,7 +269,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
             <div className="space-y-5">
               {/* Strength badge */}
               <div>
-                <span className={cn('text-xs font-medium px-2 py-1 rounded-full bg-zinc-100', STRENGTH_COLORS[p.relationship_strength])}>
+                <span className={cn('text-xs font-medium px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800', STRENGTH_COLORS[p.relationship_strength])}>
                   {STRENGTH_LABELS[p.relationship_strength]}
                 </span>
               </div>
@@ -333,7 +333,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
                     <a
                       href={`https://x.com/${p.twitter_x_handle.replace(/^@/, '')}`}
                       target="_blank" rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-xs bg-zinc-100 text-zinc-700 border border-zinc-200 rounded-full px-2 py-1 hover:bg-zinc-200"
+                      className="inline-flex items-center gap-1 text-xs bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700 rounded-full px-2 py-1 hover:bg-zinc-200 dark:hover:bg-zinc-700"
                     >
                       <Twitter className="w-3 h-3" />
                       @{p.twitter_x_handle.replace(/^@/, '')}
@@ -362,9 +362,26 @@ export function PersonDetailModal({ person, onClose }: Props) {
                 </div>
               )}
 
+              {/* Facebook-only banner */}
+              {p.preferred_contact_via === 'facebook' && p.facebook_url && (
+                <a
+                  href={facebookProfile(p.facebook_url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl text-white no-underline"
+                  style={{ backgroundColor: '#1877F2' }}
+                >
+                  <Facebook className="w-5 h-5 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-semibold leading-tight">Facebook is the only way to reach {p.first_name}</div>
+                    <div className="text-xs opacity-80 mt-0.5">Tap to open their profile →</div>
+                  </div>
+                </a>
+              )}
+
               {/* Location / how we met */}
               {(p.city || p.country || p.how_we_met) && (
-                <div className="text-xs text-zinc-500 space-y-1">
+                <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
                   {(p.city || p.country) && (
                     <div className="flex items-center gap-1.5">
                       <MapPin className="w-3 h-3" />
@@ -389,20 +406,20 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {/* Stats */}
               <div className="grid grid-cols-2 gap-3">
                 {p.discussions_count != null && (
-                  <div className="bg-zinc-50 rounded-xl px-4 py-3 flex items-center gap-2">
-                    <MessageSquare className="w-4 h-4 text-zinc-400" />
+                  <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-2">
+                    <MessageSquare className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                     <div>
-                      <div className="text-lg font-semibold text-zinc-900">{p.discussions_count}</div>
-                      <div className="text-xs text-zinc-400">Discussions</div>
+                      <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{p.discussions_count}</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Discussions</div>
                     </div>
                   </div>
                 )}
                 {p.tasks_count != null && (
-                  <div className="bg-zinc-50 rounded-xl px-4 py-3 flex items-center gap-2">
-                    <CheckSquare className="w-4 h-4 text-zinc-400" />
+                  <div className="bg-zinc-50 dark:bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-2">
+                    <CheckSquare className="w-4 h-4 text-zinc-400 dark:text-zinc-500" />
                     <div>
-                      <div className="text-lg font-semibold text-zinc-900">{p.tasks_count}</div>
-                      <div className="text-xs text-zinc-400">Tasks</div>
+                      <div className="text-lg font-semibold text-zinc-900 dark:text-zinc-100">{p.tasks_count}</div>
+                      <div className="text-xs text-zinc-400 dark:text-zinc-500">Tasks</div>
                     </div>
                   </div>
                 )}
@@ -412,7 +429,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {p.next_followup_at && (
                 <div className={cn(
                   'flex items-center gap-2 text-sm px-4 py-3 rounded-xl border',
-                  isOverdue ? 'bg-red-50 border-red-200 text-red-600' : 'bg-zinc-50 border-zinc-200 text-zinc-600'
+                  isOverdue ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400' : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
                 )}>
                   <Calendar className="w-4 h-4 shrink-0" />
                   <span>Follow up {formatRelativeDate(p.next_followup_at)}</span>
@@ -424,7 +441,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {p.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {p.tags.map(tag => (
-                    <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-zinc-100 text-zinc-600 font-medium">
+                    <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
                       {tag.name}
                     </span>
                   ))}
@@ -434,11 +451,11 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {/* About (plain text bio from person record) */}
               {p.notes && (
                 <div>
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
                     <FileText className="w-3.5 h-3.5" />
                     About
                   </div>
-                  <p className="text-sm text-zinc-700 whitespace-pre-wrap">{p.notes}</p>
+                  <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{p.notes}</p>
                 </div>
               )}
 
@@ -468,14 +485,14 @@ export function PersonDetailModal({ person, onClose }: Props) {
             <div className="space-y-3">
               {/* Note list */}
               {loadingNotes && (
-                <div className="flex items-center gap-2 py-4 text-zinc-400 text-sm">
+                <div className="flex items-center gap-2 py-4 text-zinc-400 dark:text-zinc-500 text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading notes...
                 </div>
               )}
 
               {!loadingNotes && noteList.length === 0 && !creatingNote && (
-                <div className="text-center py-8 text-zinc-400 text-sm">
+                <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm">
                   No notes yet for {p.first_name}.
                 </div>
               )}
@@ -489,14 +506,14 @@ export function PersonDetailModal({ person, onClose }: Props) {
                       className={cn(
                         'w-full text-left px-3 py-2.5 rounded-lg border transition-colors',
                         selectedNote?.id === note.id
-                          ? 'border-indigo-200 bg-indigo-50'
-                          : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                          ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/40'
+                          : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                       )}
                     >
-                      <p className="text-sm font-medium text-zinc-900 truncate">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                         {note.title || 'Untitled'}
                       </p>
-                      <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(note.updated_at)}</p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(note.updated_at)}</p>
                     </button>
                   ))}
                 </div>
@@ -506,7 +523,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {!creatingNote && !selectedNote && (
                 <button
                   onClick={() => { setCreatingNote(true); setSelectedNote(null) }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 rounded-lg text-sm text-zinc-400 hover:border-zinc-400 hover:text-zinc-500 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New note
@@ -517,12 +534,12 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {(selectedNote || creatingNote) && (
                 <>
                   <div className="flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">
+                    <span className="text-xs text-zinc-400 dark:text-zinc-500">
                       {creatingNote ? 'New note' : selectedNote?.title || 'Untitled'}
                     </span>
                     <button
                       onClick={() => { setSelectedNote(null); setCreatingNote(false) }}
-                      className="text-xs text-zinc-400 hover:text-zinc-600"
+                      className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400"
                     >
                       ← Back to list
                     </button>
@@ -593,7 +610,7 @@ function ActivityPanel({
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wide">Activity</h3>
+        <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">Activity</h3>
         {hasAnyHandle && (
           <button
             onClick={onRefresh}
@@ -609,21 +626,21 @@ function ActivityPanel({
       </div>
 
       {loading && (
-        <div className="flex items-center gap-2 py-4 text-zinc-400 text-sm">
+        <div className="flex items-center gap-2 py-4 text-zinc-400 dark:text-zinc-500 text-sm">
           <Loader2 className="w-4 h-4 animate-spin" />
           Loading activity…
         </div>
       )}
 
       {!loading && !hasAnyHandle && list.length === 0 && (
-        <p className="text-xs text-zinc-400 py-3">
+        <p className="text-xs text-zinc-400 dark:text-zinc-500 py-3">
           Add an Instagram or Facebook handle to see recent activity.
         </p>
       )}
 
       {!loading && hasAnyHandle && list.length === 0 && (
         <div className="py-3 space-y-2">
-          <p className="text-xs text-zinc-400">No recent activity captured yet.</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500">No recent activity captured yet.</p>
           <button
             onClick={onRefresh}
             disabled={refreshing}
@@ -637,7 +654,7 @@ function ActivityPanel({
         </div>
       )}
 
-      <div className="divide-y divide-zinc-100">
+      <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
         {list.map(a => (
           <ActivityRow key={a.id} item={a} onAcknowledge={() => onAcknowledge(a.id)} />
         ))}
@@ -661,7 +678,7 @@ function ActivityRow({ item, onAcknowledge }: { item: SocialActivity; onAcknowle
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 text-xs text-zinc-400">
+        <div className="flex items-center gap-2 text-xs text-zinc-400 dark:text-zinc-500">
           <span className="capitalize">{item.kind.replace('_', ' ')}</span>
           <span>·</span>
           <span>{formatRelativeDate(item.occurred_at)}</span>
@@ -674,7 +691,7 @@ function ActivityRow({ item, onAcknowledge }: { item: SocialActivity; onAcknowle
           )}
         </div>
         {content && (
-          <p className="text-sm text-zinc-700 mt-1 whitespace-pre-wrap leading-snug">
+          <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-1 whitespace-pre-wrap leading-snug">
             {visible}
             {isLong && (
               <button
@@ -757,10 +774,10 @@ function InteractionsTab({ person }: { person: Person }) {
       <div className={cn(
         'flex items-center gap-2 px-4 py-3 rounded-xl border text-sm',
         cadenceOverdue
-          ? 'bg-amber-50 border-amber-200 text-amber-700'
+          ? 'bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300'
           : days === null
-          ? 'bg-zinc-50 border-zinc-200 text-zinc-500'
-          : 'bg-emerald-50 border-emerald-200 text-emerald-700'
+          ? 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400'
+          : 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300'
       )}>
         <Clock className="w-4 h-4 shrink-0" />
         <span>
@@ -780,8 +797,8 @@ function InteractionsTab({ person }: { person: Person }) {
         <div className={cn(
           'flex items-center gap-2 text-sm px-4 py-3 rounded-xl border',
           new Date(person.next_followup_at) < new Date()
-            ? 'bg-red-50 border-red-200 text-red-600'
-            : 'bg-zinc-50 border-zinc-200 text-zinc-600'
+            ? 'bg-red-50 dark:bg-red-900/30 border-red-200 dark:border-red-800 text-red-600 dark:text-red-400'
+            : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400'
         )}>
           <Calendar className="w-4 h-4 shrink-0" />
           <span>Follow up {formatRelativeDate(person.next_followup_at)}</span>
@@ -793,7 +810,7 @@ function InteractionsTab({ person }: { person: Person }) {
 
       {/* Log interaction */}
       {logOpen ? (
-        <div className="border border-zinc-200 rounded-xl p-4 space-y-3 bg-zinc-50">
+        <div className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 space-y-3 bg-zinc-50 dark:bg-zinc-800">
           {/* Type chips */}
           <div className="flex flex-wrap gap-1.5">
             {LOG_TYPES.map(({ type, label, icon: Icon }) => (
@@ -804,7 +821,7 @@ function InteractionsTab({ person }: { person: Person }) {
                   'inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border transition-colors',
                   logType === type
                     ? 'bg-indigo-600 text-white border-indigo-600'
-                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                    : 'bg-white dark:bg-zinc-700 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-600 hover:border-zinc-300 dark:hover:border-zinc-500 hover:bg-zinc-50 dark:hover:bg-zinc-600'
                 )}
               >
                 <Icon className="w-3 h-3" />
@@ -818,7 +835,7 @@ function InteractionsTab({ person }: { person: Person }) {
             type="datetime-local"
             value={logDate}
             onChange={e => setLogDate(e.target.value)}
-            className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+            className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
           />
 
           {/* Note */}
@@ -827,7 +844,7 @@ function InteractionsTab({ person }: { person: Person }) {
             onChange={e => setLogNote(e.target.value)}
             placeholder="Add a note… (optional)"
             rows={2}
-            className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-white resize-none focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+            className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 dark:text-zinc-100 resize-none focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
           />
 
           {/* Actions */}
@@ -853,7 +870,7 @@ function InteractionsTab({ person }: { person: Person }) {
       ) : (
         <button
           onClick={() => setLogOpen(true)}
-          className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 rounded-lg text-sm text-zinc-400 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-400 dark:text-zinc-500 hover:border-indigo-400 hover:text-indigo-500 transition-colors"
         >
           <Plus className="w-3.5 h-3.5" />
           Log interaction
@@ -868,12 +885,12 @@ function InteractionsTab({ person }: { person: Person }) {
         </div>
       )}
       {!isLoading && (!timeline || timeline.length === 0) && (
-        <p className="text-sm text-zinc-400 py-6 text-center">
+        <p className="text-sm text-zinc-400 dark:text-zinc-500 py-6 text-center">
           No interactions yet. Log your first one above.
         </p>
       )}
       {timeline && timeline.length > 0 && (
-        <div className="divide-y divide-zinc-100">
+        <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
           {timeline.map((event, i) => (
             <InteractionRow key={i} event={event} />
           ))}
@@ -899,17 +916,17 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-medium text-zinc-800 truncate">{displayTitle}</p>
+            <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{displayTitle}</p>
             {d.type === 'email' && thread?.message_count && thread.message_count > 1 && (
-              <span className="text-[10px] bg-zinc-100 text-zinc-500 px-1.5 py-0.5 rounded-full shrink-0">
+              <span className="text-[10px] bg-zinc-100 dark:bg-zinc-800 text-zinc-500 dark:text-zinc-400 px-1.5 py-0.5 rounded-full shrink-0">
                 {thread.message_count}
               </span>
             )}
           </div>
           {displaySub && (
-            <p className="text-xs text-zinc-500 mt-0.5 truncate">{displaySub}</p>
+            <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{displaySub}</p>
           )}
-          <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(event.date)}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(event.date)}</p>
         </div>
       </div>
     )
@@ -919,13 +936,13 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     const n = event.data as Note
     return (
       <div className="flex gap-3 py-3">
-        <div className="w-8 h-8 rounded-full border bg-amber-50 border-amber-200 flex items-center justify-center shrink-0">
-          <FileText className="w-4 h-4 text-amber-600" />
+        <div className="w-8 h-8 rounded-full border bg-amber-50 dark:bg-amber-900/30 border-amber-200 dark:border-amber-800 flex items-center justify-center shrink-0">
+          <FileText className="w-4 h-4 text-amber-600 dark:text-amber-400" />
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-sm font-medium text-zinc-800 truncate">{n.title || 'Note'}</p>
-          {n.body && <p className="text-xs text-zinc-500 mt-0.5 truncate">{n.body.slice(0, 120)}</p>}
-          <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(event.date)}</p>
+          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{n.title || 'Note'}</p>
+          {n.body && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{n.body.slice(0, 120)}</p>}
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(event.date)}</p>
         </div>
       </div>
     )
@@ -935,12 +952,12 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     const t = event.data as Task
     return (
       <div className="flex gap-3 py-3">
-        <div className="w-8 h-8 rounded-full border bg-green-50 border-green-200 flex items-center justify-center shrink-0">
-          <CheckSquare className="w-4 h-4 text-green-600" />
+        <div className="w-8 h-8 rounded-full border bg-green-50 dark:bg-green-900/30 border-green-200 dark:border-green-800 flex items-center justify-center shrink-0">
+          <CheckSquare className="w-4 h-4 text-green-600 dark:text-green-400" />
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-sm font-medium text-zinc-800 truncate">{t.title}</p>
-          <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(event.date)}</p>
+          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{t.title}</p>
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(event.date)}</p>
         </div>
       </div>
     )
@@ -951,15 +968,15 @@ function InteractionRow({ event }: { event: TimelineEvent }) {
     const Icon = REACH_OUT_VIA_ICON[r.via] ?? MessageSquare
     return (
       <div className="flex gap-3 py-3">
-        <div className="w-8 h-8 rounded-full border bg-zinc-50 border-zinc-200 flex items-center justify-center shrink-0">
-          <Icon className="w-4 h-4 text-zinc-500" />
+        <div className="w-8 h-8 rounded-full border bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700 flex items-center justify-center shrink-0">
+          <Icon className="w-4 h-4 text-zinc-500 dark:text-zinc-400" />
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
-          <p className="text-sm font-medium text-zinc-800 capitalize">
+          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 capitalize">
             Reached out via {r.via.replace('_', ' ')}
           </p>
-          {r.note && <p className="text-xs text-zinc-500 mt-0.5 truncate">{r.note}</p>}
-          <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(event.date)}</p>
+          {r.note && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 truncate">{r.note}</p>}
+          <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(event.date)}</p>
         </div>
       </div>
     )
@@ -1007,7 +1024,7 @@ function ContactRows({ person }: { person: Person }) {
           <Mail className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
           <span className="truncate">{e.value}</span>
           {e.label && (
-            <span className="text-[10px] uppercase tracking-wide text-zinc-400 bg-zinc-100 rounded px-1 py-0.5">
+            <span className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1 py-0.5">
               {e.label}
             </span>
           )}
@@ -1022,7 +1039,7 @@ function ContactRows({ person }: { person: Person }) {
           <Phone className="w-3.5 h-3.5 shrink-0 text-zinc-400" />
           <span className="truncate">{ph.value}</span>
           {ph.label && (
-            <span className="text-[10px] uppercase tracking-wide text-zinc-400 bg-zinc-100 rounded px-1 py-0.5">
+            <span className="text-[10px] uppercase tracking-wide text-zinc-400 dark:text-zinc-500 bg-zinc-100 dark:bg-zinc-800 rounded px-1 py-0.5">
               {ph.label}
             </span>
           )}
@@ -1108,7 +1125,7 @@ function DoNotContactPanel({ person }: { person: Person }) {
   return (
     <div className={cn(
       'rounded-xl border px-4 py-3',
-      isDnc ? 'bg-red-50/40 border-red-100' : 'bg-zinc-50 border-zinc-200',
+      isDnc ? 'bg-red-50/40 dark:bg-red-900/20 border-red-100 dark:border-red-900' : 'bg-zinc-50 dark:bg-zinc-800 border-zinc-200 dark:border-zinc-700',
     )}>
       <div className="flex items-center justify-between gap-3">
         <button
@@ -1117,12 +1134,12 @@ function DoNotContactPanel({ person }: { person: Person }) {
         >
           <div className={cn(
             'w-7 h-7 rounded-lg flex items-center justify-center shrink-0',
-            isDnc ? 'bg-red-100 text-red-600' : 'bg-zinc-100 text-zinc-400',
+            isDnc ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400' : 'bg-zinc-100 dark:bg-zinc-700 text-zinc-400 dark:text-zinc-500',
           )}>
             <Ban className="w-3.5 h-3.5" />
           </div>
           <div className="min-w-0">
-            <div className="text-sm font-medium text-zinc-900">
+            <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               {isDnc ? 'Do not contact' : 'Contact normally'}
             </div>
             {isDnc && person.do_not_contact_reason && !expanded && (
@@ -1131,7 +1148,7 @@ function DoNotContactPanel({ person }: { person: Person }) {
               </div>
             )}
             {!isDnc && (
-              <div className="text-xs text-zinc-400">
+              <div className="text-xs text-zinc-400 dark:text-zinc-500">
                 Suppress reminders, drafts, and cadence checks.
               </div>
             )}
@@ -1145,7 +1162,7 @@ function DoNotContactPanel({ person }: { person: Person }) {
             disabled={updateMut.isPending}
             className="sr-only peer"
           />
-          <div className="w-10 h-5 bg-zinc-200 peer-checked:bg-red-500 rounded-full transition-colors relative">
+          <div className="w-10 h-5 bg-zinc-200 dark:bg-zinc-700 peer-checked:bg-red-500 rounded-full transition-colors relative">
             <div className={cn(
               'absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform shadow',
               isDnc && 'translate-x-5',
@@ -1156,7 +1173,7 @@ function DoNotContactPanel({ person }: { person: Person }) {
 
       {isDnc && expanded && (
         <div className="mt-3 pt-3 border-t border-red-100/60">
-          <label className="block text-xs font-medium text-zinc-600 mb-1">
+          <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">
             Reason (optional)
           </label>
           <textarea
@@ -1167,9 +1184,9 @@ function DoNotContactPanel({ person }: { person: Person }) {
             rows={2}
             maxLength={500}
             disabled={updateMut.isPending}
-            className="w-full text-sm border border-red-200 bg-white rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 disabled:opacity-50"
+            className="w-full text-sm border border-red-200 dark:border-red-800 bg-white dark:bg-zinc-800 dark:text-zinc-100 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-red-400 focus:ring-1 focus:ring-red-400 disabled:opacity-50"
           />
-          <p className="text-[11px] text-zinc-400 mt-1">
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
             Saved when you click outside the field.
           </p>
         </div>
@@ -1216,7 +1233,7 @@ function RememberPanel({ person, answers }: { person: Person; answers: ContactPr
 
   return (
     <div>
-      <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
+      <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2 flex items-center gap-1.5">
         <Brain className="w-3 h-3" />
         What you remember
       </h3>
@@ -1226,7 +1243,7 @@ function RememberPanel({ person, answers }: { person: Person; answers: ContactPr
           return (
             <div
               key={entry.key}
-              className="bg-indigo-50/40 border border-indigo-100 rounded-lg px-3 py-2 group"
+              className="bg-indigo-50/40 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 rounded-lg px-3 py-2 group"
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-[11px] font-medium text-indigo-700 uppercase tracking-wide">{entry.label}</p>
@@ -1262,7 +1279,7 @@ function RememberPanel({ person, answers }: { person: Person; answers: ContactPr
                   </button>
                 </div>
               ) : (
-                <p className="text-sm text-zinc-700 mt-0.5 whitespace-pre-wrap">{entry.value}</p>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 mt-0.5 whitespace-pre-wrap">{entry.value}</p>
               )}
             </div>
           )

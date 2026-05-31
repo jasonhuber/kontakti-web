@@ -44,9 +44,9 @@ export function DiscussionDetailModal({ discussion, onClose }: Props) {
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-100 shrink-0 gap-3">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0 gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-lg">{TYPE_ICONS[d.type] ?? '•'}</span>
@@ -54,8 +54,8 @@ export function DiscussionDetailModal({ discussion, onClose }: Props) {
                 {TYPE_LABELS[d.type] ?? d.type}
               </span>
             </div>
-            <h2 className="text-base font-semibold text-zinc-900">{d.title}</h2>
-            <p className="text-sm text-zinc-500 mt-0.5">{formatRelativeDate(d.date)}</p>
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{d.title}</h2>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-0.5">{formatRelativeDate(d.date)}</p>
           </div>
           <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors shrink-0">
             <X className="w-5 h-5" />
@@ -74,17 +74,17 @@ export function DiscussionDetailModal({ discussion, onClose }: Props) {
           {/* Summary */}
           {d.summary && (
             <div>
-              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Summary</h3>
-              <p className="text-sm text-zinc-700">{d.summary}</p>
+              <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Summary</h3>
+              <p className="text-sm text-zinc-700 dark:text-zinc-300">{d.summary}</p>
             </div>
           )}
 
           {/* Body / notes */}
           {d.body && (
             <div>
-              <h3 className="text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">Notes</h3>
+              <h3 className="text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">Notes</h3>
               <div
-                className="prose prose-sm max-w-none text-zinc-700"
+                className="prose prose-sm max-w-none text-zinc-700 dark:text-zinc-300"
                 dangerouslySetInnerHTML={{ __html: d.body }}
               />
             </div>
@@ -93,7 +93,7 @@ export function DiscussionDetailModal({ discussion, onClose }: Props) {
           {/* Participants */}
           {d.participants && d.participants.length > 0 && (
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+              <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
                 <Users className="w-3.5 h-3.5" />
                 Participants ({d.participants.length})
               </div>

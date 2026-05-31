@@ -147,7 +147,7 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-start justify-center pt-20">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-start justify-center pt-20">
       <div className="w-full max-w-sm mx-auto px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
@@ -156,20 +156,20 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
             alt="Kontakti"
             className="w-24 h-24 mb-5 drop-shadow-sm"
           />
-          <h1 className="text-2xl font-bold text-zinc-900">Kontakti</h1>
-          <p className="text-sm text-zinc-400 mt-1 mb-4">Personal relationship intelligence</p>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Kontakti</h1>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-1 mb-4">Personal relationship intelligence</p>
           <blockquote className="text-center px-6">
-            <p className="text-sm text-zinc-500 italic leading-relaxed">
+            <p className="text-sm text-zinc-500 dark:text-zinc-400 italic leading-relaxed">
               "Your network is your net worth — but only if you actually nurture it."
             </p>
           </blockquote>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Email
               </label>
               <input
@@ -179,7 +179,7 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="you@example.com"
               />
             </div>
@@ -195,7 +195,7 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="••••••••"
               />
             </div>
@@ -216,9 +216,9 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
           </form>
 
           <div className="flex items-center gap-3 mt-5">
-            <div className="flex-1 h-px bg-zinc-200" />
+            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
             <span className="text-xs text-zinc-400">or</span>
-            <div className="flex-1 h-px bg-zinc-200" />
+            <div className="flex-1 h-px bg-zinc-200 dark:bg-zinc-700" />
           </div>
 
           <div className="mt-4 min-h-[40px]" ref={googleButtonRef}>
@@ -226,7 +226,7 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
               <button
                 type="button"
                 onClick={() => setError('Google Client ID not configured (VITE_GOOGLE_CLIENT_ID).')}
-                className="flex items-center justify-center w-full border border-zinc-200 rounded-lg py-2.5 text-sm font-medium text-zinc-500 bg-zinc-50"
+                className="flex items-center justify-center w-full border border-zinc-200 dark:border-zinc-600 rounded-lg py-2.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 bg-zinc-50 dark:bg-zinc-800"
               >
                 Continue with Google
               </button>
@@ -235,7 +235,7 @@ export function LoginPage({ onLogin, onRegisterClick }: Props) {
         </div>
 
         {onRegisterClick && (
-          <p className="text-center text-sm text-zinc-500 mt-5">
+          <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mt-5">
             Don't have an account?{' '}
             <button onClick={onRegisterClick} className="text-indigo-600 hover:text-indigo-700 font-medium">
               Create one

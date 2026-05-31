@@ -20,7 +20,7 @@ class Person extends Model
         'contact_cadence', 'contact_on_birthday', 'contact_on_holidays',
         'birthday',
         'notes', 'device_note', 'addresses', 'urls', 'metadata',
-        'do_not_contact', 'do_not_contact_reason',
+        'do_not_contact', 'do_not_contact_reason', 'preferred_contact_via',
         'needs_review', 'reviewed_at',
         // Social handles + relational metadata
         'instagram_handle', 'facebook_url', 'twitter_x_handle', 'tiktok_handle',

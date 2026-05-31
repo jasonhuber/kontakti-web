@@ -135,7 +135,7 @@ export function OnboardingPage({ onComplete }: { onComplete: () => void }) {
   }, [candidates])
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
         {step === 'welcome' && (
           <WelcomeStep
@@ -177,8 +177,8 @@ function WelcomeStep({ onStart, onSkip }: { onStart: () => void; onSkip: () => v
       <div className="flex flex-col items-center gap-5">
         <img src="/favicon.svg" alt="Kontakti" className="w-24 h-24 drop-shadow-sm" />
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-zinc-900">Welcome to Kontakti</h1>
-          <p className="text-zinc-500 text-sm leading-relaxed">
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">Welcome to Kontakti</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
             Let's seed your network with real contacts<br />
             so you're not starting from a blank page.
           </p>
@@ -227,8 +227,8 @@ function GoogleStep({
           <Mail className="w-7 h-7 text-red-500" />
         </div>
         <div>
-          <h2 className="text-2xl font-bold text-zinc-900">Import from Google</h2>
-          <p className="text-zinc-500 text-sm mt-1">
+          <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Import from Google</h2>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm mt-1">
             Pull in Google Contacts and frequent Gmail senders.
           </p>
         </div>
@@ -259,26 +259,26 @@ function GoogleStep({
           </div>
         ) : phase === 'preview' ? (
           <div className="w-full space-y-3">
-            <p className="text-sm font-medium text-zinc-700">
+            <p className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
               {candidates.length} contacts found
             </p>
             {error && (
               <p className="text-xs text-red-600">{error}</p>
             )}
-            <div className="bg-white border border-zinc-200 rounded-xl overflow-hidden">
+            <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl overflow-hidden">
               {candidates.slice(0, 4).map((c, i) => (
                 <div
                   key={i}
                   className={cn(
                     'flex items-center gap-3 px-4 py-3',
-                    i < Math.min(candidates.length, 4) - 1 && 'border-b border-zinc-100'
+                    i < Math.min(candidates.length, 4) - 1 && 'border-b border-zinc-100 dark:border-zinc-800'
                   )}
                 >
-                  <div className="w-8 h-8 rounded-full bg-zinc-100 flex items-center justify-center text-xs font-semibold text-zinc-500 shrink-0">
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-xs font-semibold text-zinc-500 dark:text-zinc-400 shrink-0">
                     {((c.first_name[0] ?? '') + (c.last_name[0] ?? '')).toUpperCase() || '?'}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-zinc-800 truncate">
+                    <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">
                       {[c.first_name, c.last_name].filter(Boolean).join(' ')}
                     </p>
                     {c.email && (
@@ -288,7 +288,7 @@ function GoogleStep({
                 </div>
               ))}
               {candidates.length > 4 && (
-                <div className="px-4 py-2 text-xs text-zinc-400 text-center border-t border-zinc-100">
+                <div className="px-4 py-2 text-xs text-zinc-400 dark:text-zinc-500 text-center border-t border-zinc-100 dark:border-zinc-800">
                   + {candidates.length - 4} more
                 </div>
               )}
@@ -302,7 +302,7 @@ function GoogleStep({
         ) : phase === 'imported' ? (
           <div className="text-center space-y-2 w-full">
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto" />
-            <p className="text-base font-semibold text-zinc-800">{imported} contacts imported</p>
+            <p className="text-base font-semibold text-zinc-800 dark:text-zinc-200">{imported} contacts imported</p>
             {duplicatesDetected > 0 && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mt-2">
                 We found {duplicatesDetected} potential duplicate{duplicatesDetected === 1 ? '' : 's'} —
@@ -365,19 +365,19 @@ function DoneStep({
           <CheckCircle className="w-10 h-10 text-green-500" />
         </div>
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold text-zinc-900">You're all set!</h1>
-          <p className="text-zinc-500 text-sm leading-relaxed">
+          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">You're all set!</h1>
+          <p className="text-zinc-500 dark:text-zinc-400 text-sm leading-relaxed">
             {imported > 0
               ? `${imported} contacts imported and ready to manage.`
               : 'You can import contacts anytime from the People section.'}
           </p>
         </div>
         {imported > 0 && (
-          <div className="w-full flex items-center gap-3 bg-white border border-zinc-200 rounded-xl px-4 py-3">
+          <div className="w-full flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-xl px-4 py-3">
             <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center shrink-0">
               <Users className="w-4 h-4 text-red-500" />
             </div>
-            <span className="text-sm text-zinc-700">Google contacts</span>
+            <span className="text-sm text-zinc-700 dark:text-zinc-300">Google contacts</span>
             <span className="ml-auto text-sm font-semibold text-indigo-600">{imported}</span>
           </div>
         )}

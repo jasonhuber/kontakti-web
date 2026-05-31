@@ -73,6 +73,7 @@ export interface Person {
   device_note?: string
   do_not_contact?: boolean
   do_not_contact_reason?: string
+  preferred_contact_via?: string
   emails?: PersonEmail[]
   phones?: PersonPhone[]
   photos?: PersonPhoto[]

@@ -42,10 +42,10 @@ export function NotesPage() {
   return (
     <div className="flex h-full">
       {/* Left: note list */}
-      <div className="w-72 border-r border-zinc-200 flex flex-col shrink-0 bg-white">
-        <div className="p-4 border-b border-zinc-100">
+      <div className="w-72 border-r border-zinc-200 dark:border-zinc-700 flex flex-col shrink-0 bg-white dark:bg-zinc-900">
+        <div className="p-4 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center justify-between mb-3">
-            <h1 className="text-base font-semibold text-zinc-900">Notes</h1>
+            <h1 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Notes</h1>
             <button
               onClick={handleNew}
               className="flex items-center gap-1 text-xs bg-indigo-600 text-white px-2.5 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors"
@@ -61,7 +61,7 @@ export function NotesPage() {
               placeholder="Search notes..."
               value={search}
               onChange={e => setSearch(e.target.value)}
-              className="w-full text-sm border border-zinc-200 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+              className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg pl-8 pr-3 py-1.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </div>
         </div>
@@ -81,18 +81,18 @@ export function NotesPage() {
             <button
               key={note.id}
               className={cn(
-                'w-full text-left px-4 py-3 border-b border-zinc-100 transition-colors',
-                selectedNote?.id === note.id ? 'bg-indigo-50' : 'hover:bg-zinc-50'
+                'w-full text-left px-4 py-3 border-b border-zinc-100 dark:border-zinc-800 transition-colors',
+                selectedNote?.id === note.id ? 'bg-indigo-50 dark:bg-indigo-900/40' : 'hover:bg-zinc-50 dark:hover:bg-zinc-800'
               )}
               onClick={() => handleSelect(note)}
             >
-              <p className="text-sm font-medium text-zinc-900 truncate">
+              <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                 {note.title || 'Untitled'}
               </p>
-              <p className="text-xs text-zinc-400 mt-0.5 line-clamp-2">
+              <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-2">
                 {note.body.replace(/<[^>]+>/g, '').slice(0, 80) || '—'}
               </p>
-              <p className="text-xs text-zinc-300 mt-1">{formatRelativeDate(note.updated_at)}</p>
+              <p className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">{formatRelativeDate(note.updated_at)}</p>
             </button>
           ))}
         </div>
@@ -101,7 +101,7 @@ export function NotesPage() {
       {/* Right: editor */}
       <div className="flex-1 overflow-y-auto p-6">
         {!selectedNote && !creating && (
-          <div className="flex flex-col items-center justify-center h-full text-zinc-400">
+          <div className="flex flex-col items-center justify-center h-full text-zinc-400 dark:text-zinc-500">
             <FileText className="w-10 h-10 mb-3 opacity-30" />
             <p className="text-sm">Select a note or create a new one</p>
           </div>

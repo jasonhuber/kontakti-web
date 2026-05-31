@@ -32,20 +32,20 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-start justify-center pt-24">
+    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 flex items-start justify-center pt-24">
       <div className="w-full max-w-sm mx-auto px-4">
         {/* Logo */}
         <div className="flex flex-col items-center mb-8">
           <img src="/favicon.svg" alt="Kontakti" className="w-16 h-16 mb-4 drop-shadow-sm" />
-          <h1 className="text-2xl font-bold text-zinc-900">Create your account</h1>
-          <p className="text-sm text-zinc-500 mt-1">Personal relationship intelligence</p>
+          <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Create your account</h1>
+          <p className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Personal relationship intelligence</p>
         </div>
 
         {/* Card */}
-        <div className="bg-white border border-zinc-200 rounded-2xl p-8 shadow-sm">
+        <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl p-8 shadow-sm">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="name" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Full name
               </label>
               <input
@@ -56,13 +56,13 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
                 autoFocus
                 value={name}
                 onChange={e => setName(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="Jane Smith"
               />
             </div>
 
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="username" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Username
               </label>
               <input
@@ -72,13 +72,13 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
                 required
                 value={username}
                 onChange={e => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ''))}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="janesmith"
               />
             </div>
 
             <div>
-              <label htmlFor="reg-email" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="reg-email" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Email
               </label>
               <input
@@ -88,13 +88,13 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
                 required
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="jane@example.com"
               />
             </div>
 
             <div>
-              <label htmlFor="reg-password" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="reg-password" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Password
               </label>
               <input
@@ -105,13 +105,13 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
                 minLength={8}
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="8+ characters"
               />
             </div>
 
             <div>
-              <label htmlFor="confirm" className="block text-sm font-medium text-zinc-700 mb-1.5">
+              <label htmlFor="confirm" className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Confirm password
               </label>
               <input
@@ -121,7 +121,7 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
                 required
                 value={confirm}
                 onChange={e => setConfirm(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors"
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2.5 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 transition-colors dark:bg-zinc-800 dark:text-zinc-100"
                 placeholder="••••••••"
               />
             </div>
@@ -142,7 +142,7 @@ export function RegisterPage({ onRegister, onLoginClick }: Props) {
           </form>
         </div>
 
-        <p className="text-center text-sm text-zinc-500 mt-5">
+        <p className="text-center text-sm text-zinc-500 dark:text-zinc-400 mt-5">
           Already have an account?{' '}
           <button onClick={onLoginClick} className="text-indigo-600 hover:text-indigo-700 font-medium">
             Sign in

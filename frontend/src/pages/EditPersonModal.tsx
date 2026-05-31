@@ -104,6 +104,7 @@ export function EditPersonModal({ person, onClose }: Props) {
   // Social handles
   const [instagram, setInstagram] = useState(person.instagram_handle ?? '')
   const [facebookUrl, setFacebookUrl] = useState(person.facebook_url ?? '')
+  const [facebookPrimary, setFacebookPrimary] = useState(person?.preferred_contact_via === 'facebook')
   const [twitter, setTwitter]     = useState(person.twitter_x_handle ?? '')
   const [tiktok, setTiktok]       = useState(person.tiktok_handle ?? '')
   const [whatsapp, setWhatsapp]   = useState(person.whatsapp_phone ?? '')
@@ -180,6 +181,7 @@ export function EditPersonModal({ person, onClose }: Props) {
       // Social
       instagram_handle:   normalizeHandle(instagram) || undefined,
       facebook_url:       facebookUrl.trim() || undefined,
+      preferred_contact_via: facebookUrl.trim() && facebookPrimary ? 'facebook' : '',
       twitter_x_handle:   normalizeHandle(twitter) || undefined,
       tiktok_handle:      normalizeHandle(tiktok) || undefined,
       whatsapp_phone:     whatsapp.trim() || undefined,
@@ -234,9 +236,9 @@ export function EditPersonModal({ person, onClose }: Props) {
       <div className="fixed inset-0 z-[60] bg-black/40" onClick={handleBackdropClick} />
 
       <div className="fixed inset-0 z-[70] flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
-            <h2 className="text-base font-semibold text-zinc-900">Edit {person.full_name}</h2>
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Edit {person.full_name}</h2>
             <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
@@ -244,20 +246,20 @@ export function EditPersonModal({ person, onClose }: Props) {
 
           <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Photos</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Photos</label>
               <PhotoGallery personId={person.id} editable />
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">First name</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">First name</label>
                 <input type="text" autoFocus value={firstName} onChange={e => setFirstName(e.target.value)}
-                  className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+                  className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100" />
               </div>
               <div>
-                <label className="block text-xs font-medium text-zinc-500 mb-1.5">Last name</label>
+                <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Last name</label>
                 <input type="text" value={lastName} onChange={e => setLastName(e.target.value)}
-                  className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+                  className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100" />
               </div>
             </div>
 
@@ -266,20 +268,20 @@ export function EditPersonModal({ person, onClose }: Props) {
             <PhoneRows phones={phones} onChange={setPhones} />
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Title</label>
               <input type="text" value={title} onChange={e => setTitle(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100" />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">LinkedIn URL</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">LinkedIn URL</label>
               <input type="url" value={linkedinUrl} onChange={e => setLinkedinUrl(e.target.value)}
                 placeholder="https://linkedin.com/in/..."
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100" />
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-2">Relationship</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">Relationship</label>
               <div className="flex gap-2">
                 {STRENGTHS.map(s => (
                   <button key={s.value} type="button" onClick={() => setStrength(s.value)}
@@ -287,7 +289,7 @@ export function EditPersonModal({ person, onClose }: Props) {
                       'flex-1 text-sm py-1.5 rounded-lg border transition-colors font-medium',
                       strength === s.value
                         ? 'bg-indigo-600 border-indigo-600 text-white'
-                        : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                        : 'border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-500'
                     )}>
                     {s.label}
                   </button>
@@ -296,28 +298,28 @@ export function EditPersonModal({ person, onClose }: Props) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Follow-up date</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Follow-up date</label>
               <input type="date" value={followup} onChange={e => setFollowup(e.target.value)}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400" />
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100" />
             </div>
 
             {/* Stay in touch — drives the precomputed reach-out reminders */}
-            <div className="pt-3 border-t border-zinc-100">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Stay in touch</h3>
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">Stay in touch</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">How often to reach out</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">How often to reach out</label>
                   <select value={cadence} onChange={e => setCadence(e.target.value as ContactCadence)}
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 dark:text-zinc-100 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400">
                     {CADENCES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                   </select>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
                   <input type="checkbox" checked={onBirthday} onChange={e => setOnBirthday(e.target.checked)}
                     className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-400" />
                   Remind me on their birthday
                 </label>
-                <label className="flex items-center gap-2 text-sm text-zinc-700 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300 cursor-pointer">
                   <input type="checkbox" checked={onHolidays} onChange={e => setOnHolidays(e.target.checked)}
                     className="rounded border-zinc-300 text-indigo-600 focus:ring-indigo-400" />
                   Remind me around the holidays
@@ -326,14 +328,14 @@ export function EditPersonModal({ person, onClose }: Props) {
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-zinc-500 mb-1.5">Notes</label>
+              <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Notes</label>
               <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={4}
-                className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none" />
+                className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none dark:bg-zinc-800 dark:text-zinc-100" />
             </div>
 
             {/* Social */}
-            <div className="pt-3 border-t border-zinc-100">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Social</h3>
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">Social</h3>
               <div className="space-y-3">
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
@@ -344,9 +346,9 @@ export function EditPersonModal({ person, onClose }: Props) {
                     value={instagram}
                     onChange={e => setInstagram(e.target.value)}
                     placeholder="@username or full profile URL"
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
-                  <p className="text-[11px] text-zinc-400 mt-1">Paste their username or full profile URL — we'll extract.</p>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">Paste their username or full profile URL — we'll extract.</p>
                 </div>
                 <div>
                   <label className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 mb-1.5">
@@ -357,8 +359,19 @@ export function EditPersonModal({ person, onClose }: Props) {
                     value={facebookUrl}
                     onChange={e => setFacebookUrl(e.target.value)}
                     placeholder="https://facebook.com/username"
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
+                  {facebookUrl.trim() && (
+                    <label className="flex items-center gap-2 mt-2 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={facebookPrimary}
+                        onChange={e => setFacebookPrimary(e.target.checked)}
+                        className="w-4 h-4 rounded accent-blue-600"
+                      />
+                      <span className="text-xs text-zinc-600">Facebook is the only way to reach them</span>
+                    </label>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -370,17 +383,17 @@ export function EditPersonModal({ person, onClose }: Props) {
                       value={twitter}
                       onChange={e => setTwitter(e.target.value)}
                       placeholder="@username"
-                      className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                      className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">TikTok</label>
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">TikTok</label>
                     <input
                       type="text"
                       value={tiktok}
                       onChange={e => setTiktok(e.target.value)}
                       placeholder="@username"
-                      className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                      className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                     />
                   </div>
                 </div>
@@ -393,30 +406,30 @@ export function EditPersonModal({ person, onClose }: Props) {
                     value={whatsapp}
                     onChange={e => setWhatsapp(e.target.value)}
                     placeholder="+1 555 555 0123"
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
-                  <p className="text-[11px] text-zinc-400 mt-1">Include country code, e.g. +1 for US.</p>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">Include country code, e.g. +1 for US.</p>
                 </div>
               </div>
             </div>
 
             {/* Career */}
-            <div className="pt-3 border-t border-zinc-100">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Career & relationship</h3>
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">Career & relationship</h3>
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Previous employers</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Previous employers</label>
                   <input
                     type="text"
                     value={previousEmployersText}
                     onChange={e => setPreviousEmployersText(e.target.value)}
                     placeholder="Stripe, Airbnb, Apple"
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
-                  <p className="text-[11px] text-zinc-400 mt-1">Comma-separated company names.</p>
+                  <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">Comma-separated company names.</p>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">How we met</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">How we met</label>
                   <textarea
                     value={howWeMet}
                     onChange={e => setHowWeMet(e.target.value)}
@@ -426,10 +439,10 @@ export function EditPersonModal({ person, onClose }: Props) {
                   />
                 </div>
                 <div className="relative">
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Introduced by</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Introduced by</label>
                   {introducedById && introResolved ? (
-                    <div className="flex items-center gap-2 text-sm border border-zinc-200 rounded-lg px-3 py-2 bg-zinc-50">
-                      <span className="flex-1 truncate text-zinc-900">{introResolved.full_name}</span>
+                    <div className="flex items-center gap-2 text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 bg-zinc-50 dark:bg-zinc-800">
+                      <span className="flex-1 truncate text-zinc-900 dark:text-zinc-100">{introResolved.full_name}</span>
                       <button
                         type="button"
                         onClick={() => { setIntroducedById(''); setIntroResolved(null); setIntroducedByQuery('') }}
@@ -443,10 +456,10 @@ export function EditPersonModal({ person, onClose }: Props) {
                         value={introducedByQuery}
                         onChange={e => setIntroducedByQuery(e.target.value)}
                         placeholder="Search contacts…"
-                        className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                        className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                       />
                       {introducedByQuery.trim().length >= 2 && introCandidates && introCandidates.data.length > 0 && (
-                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white border border-zinc-200 rounded-lg shadow-lg max-h-44 overflow-y-auto">
+                        <div className="absolute z-10 left-0 right-0 mt-1 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg max-h-44 overflow-y-auto">
                           {introCandidates.data
                             .filter(p => p.id !== person.id)
                             .map(p => (
@@ -458,10 +471,10 @@ export function EditPersonModal({ person, onClose }: Props) {
                                   setIntroResolved(p)
                                   setIntroducedByQuery('')
                                 }}
-                                className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 border-b border-zinc-50 last:border-b-0"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-800 border-b border-zinc-50 dark:border-zinc-800 last:border-b-0"
                               >
-                                <div className="text-zinc-900">{p.full_name}</div>
-                                {p.company?.name && <div className="text-xs text-zinc-400">{p.company.name}</div>}
+                                <div className="text-zinc-900 dark:text-zinc-100">{p.full_name}</div>
+                                {p.company?.name && <div className="text-xs text-zinc-400 dark:text-zinc-500">{p.company.name}</div>}
                               </button>
                             ))}
                         </div>
@@ -473,34 +486,34 @@ export function EditPersonModal({ person, onClose }: Props) {
             </div>
 
             {/* Location */}
-            <div className="pt-3 border-t border-zinc-100">
-              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 mb-3">Location</h3>
+            <div className="pt-3 border-t border-zinc-100 dark:border-zinc-800">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 mb-3">Location</h3>
               <div className="grid grid-cols-3 gap-3">
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">City</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">City</label>
                   <input
                     type="text"
                     value={city}
                     onChange={e => setCity(e.target.value)}
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Region</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Region</label>
                   <input
                     type="text"
                     value={region}
                     onChange={e => setRegion(e.target.value)}
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Country</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Country</label>
                   <input
                     type="text"
                     value={country}
                     onChange={e => setCountry(e.target.value)}
-                    className="w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
+                    className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100"
                   />
                 </div>
               </div>
@@ -510,7 +523,7 @@ export function EditPersonModal({ person, onClose }: Props) {
 
           {/* Sticky action bar — errors live HERE so they're always visible
               alongside the Save button, not lost in the scrollable form above. */}
-          <div className="border-t border-zinc-100 shrink-0">
+          <div className="border-t border-zinc-100 dark:border-zinc-800 shrink-0">
             {error && (
               <div className="px-6 pt-3">
                 <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{error}</p>
@@ -518,7 +531,7 @@ export function EditPersonModal({ person, onClose }: Props) {
             )}
             <div className="px-6 py-4 flex justify-end gap-3">
               <button type="button" onClick={onClose}
-                className="text-sm text-zinc-600 hover:text-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-50 transition-colors">
+                className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 px-4 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors">
                 Cancel
               </button>
               <button type="button" onClick={handleSubmit as unknown as React.MouseEventHandler}

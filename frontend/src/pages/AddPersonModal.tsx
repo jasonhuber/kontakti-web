@@ -117,18 +117,18 @@ export function AddPersonModal({ onClose }: Props) {
     setStep('manual')
   }
 
-  const inputClass = 'w-full text-sm border border-zinc-200 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400'
+  const inputClass = 'w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 dark:bg-zinc-800 dark:text-zinc-100'
 
   return (
     <>
       <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} />
 
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
+        <div className="bg-white dark:bg-zinc-900 rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[90vh]">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
-            <h2 className="text-base font-semibold text-zinc-900">Add Person</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
+            <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Add Person</h2>
             <button onClick={onClose} className="text-zinc-400 hover:text-zinc-600 transition-colors">
               <X className="w-5 h-5" />
             </button>
@@ -144,7 +144,7 @@ export function AddPersonModal({ onClose }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">
                     LinkedIn profile URL
                   </label>
                   <input
@@ -182,11 +182,11 @@ export function AddPersonModal({ onClose }: Props) {
                 )}
               </div>
 
-              <div className="px-6 py-4 border-t border-zinc-100 shrink-0 flex justify-end gap-3">
+              <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 shrink-0 flex justify-end gap-3">
                 <button
                   type="button"
                   onClick={onClose}
-                  className="text-sm text-zinc-600 hover:text-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-50 transition-colors"
+                  className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 px-4 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                 >
                   Cancel
                 </button>
@@ -209,7 +209,7 @@ export function AddPersonModal({ onClose }: Props) {
               <form onSubmit={handleManualSubmit} className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">First name *</label>
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">First name *</label>
                     <input
                       type="text"
                       required
@@ -221,7 +221,7 @@ export function AddPersonModal({ onClose }: Props) {
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-zinc-500 mb-1.5">Last name *</label>
+                    <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Last name *</label>
                     <input
                       type="text"
                       required
@@ -238,7 +238,7 @@ export function AddPersonModal({ onClose }: Props) {
                 <PhoneRows phones={phones} onChange={setPhones} />
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Title</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Title</label>
                   <input
                     type="text"
                     value={title}
@@ -249,7 +249,7 @@ export function AddPersonModal({ onClose }: Props) {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">LinkedIn URL</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">LinkedIn URL</label>
                   <input
                     type="url"
                     value={linkedinUrl}
@@ -261,7 +261,7 @@ export function AddPersonModal({ onClose }: Props) {
 
                 {/* Relationship strength */}
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-2">Relationship</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">Relationship</label>
                   <div className="flex gap-2">
                     {STRENGTHS.map(s => (
                       <button
@@ -272,7 +272,7 @@ export function AddPersonModal({ onClose }: Props) {
                           'flex-1 text-sm py-1.5 rounded-lg border transition-colors font-medium',
                           strength === s.value
                             ? 'bg-indigo-600 border-indigo-600 text-white'
-                            : 'border-zinc-200 text-zinc-600 hover:border-zinc-300'
+                            : 'border-zinc-200 dark:border-zinc-600 text-zinc-600 dark:text-zinc-400 hover:border-zinc-300 dark:hover:border-zinc-500'
                         )}
                       >
                         {s.label}
@@ -283,7 +283,7 @@ export function AddPersonModal({ onClose }: Props) {
 
                 {/* Notes */}
                 <div>
-                  <label className="block text-xs font-medium text-zinc-500 mb-1.5">Notes</label>
+                  <label className="block text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-1.5">Notes</label>
                   <textarea
                     value={notes}
                     onChange={e => setNotes(e.target.value)}
@@ -298,11 +298,11 @@ export function AddPersonModal({ onClose }: Props) {
                 )}
               </form>
 
-              <div className="px-6 py-4 border-t border-zinc-100 shrink-0 flex justify-between items-center">
+              <div className="px-6 py-4 border-t border-zinc-100 dark:border-zinc-800 shrink-0 flex justify-between items-center">
                 <button
                   type="button"
                   onClick={() => { setStep('linkedin'); setManualError(null) }}
-                  className="text-xs text-zinc-400 hover:text-zinc-600 transition-colors"
+                  className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-400 transition-colors"
                 >
                   ← Back to LinkedIn
                 </button>
@@ -310,7 +310,7 @@ export function AddPersonModal({ onClose }: Props) {
                   <button
                     type="button"
                     onClick={onClose}
-                    className="text-sm text-zinc-600 hover:text-zinc-800 px-4 py-2 rounded-lg hover:bg-zinc-50 transition-colors"
+                    className="text-sm text-zinc-600 dark:text-zinc-400 hover:text-zinc-800 dark:hover:text-zinc-200 px-4 py-2 rounded-lg hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
                   >
                     Cancel
                   </button>

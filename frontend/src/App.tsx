@@ -25,7 +25,7 @@ import {
 import { cn } from '@/lib/utils'
 
 const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 60_000 } },
+  defaultOptions: { queries: { staleTime: 5_000 } },
 })
 
 type View =
@@ -46,11 +46,14 @@ const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: st
   { id: 'settings',     label: 'Settings',     icon: Settings },
 ]
 
+type NavTarget = { type: 'person' | 'company' | 'discussion'; id: string } | null
+
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>('today')
   const [searchOpen, setSearchOpen] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [voiceOpen, setVoiceOpen] = useState(false)
+  const [navTarget, setNavTarget] = useState<NavTarget>(null)
 
   // Register service worker (silent if unsupported / no VAPID key).
   useEffect(() => {
@@ -65,27 +68,24 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     onLogout()
   }
 
-  // Review queue badge — 60s stale.
   const { data: healthData } = useQuery({
     queryKey: ['people-health'],
     queryFn: () => peopleApi.health(),
-    staleTime: 60_000,
+    staleTime: 5_000,
   })
   const reviewCount = healthData?.buckets?.needs_review?.count ?? 0
 
-  // Pending duplicates badge — small, 60s stale.
   const { data: pendingDups } = useQuery({
     queryKey: ['duplicates', 'pending'],
     queryFn: () => duplicates.list('pending'),
-    staleTime: 60_000,
+    staleTime: 5_000,
   })
   const duplicateCount = pendingDups?.total ?? 0
 
-  // Today inbox count badge — 60s stale.
   const { data: todayItems } = useQuery({
     queryKey: ['today'],
     queryFn: () => todayApi.list(20),
-    staleTime: 60_000,
+    staleTime: 5_000,
   })
   const todayCount = todayItems?.count ?? todayItems?.items?.length ?? 0
 
@@ -98,24 +98,24 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
   }, [menuOpen])
 
   return (
-    <div className="flex h-screen bg-zinc-50 font-sans">
+    <div className="flex h-screen bg-zinc-50 dark:bg-zinc-950 font-sans">
       {/* Sidebar */}
-      <aside className="w-56 bg-white border-r border-zinc-200 flex flex-col shrink-0">
-        <div className="px-4 py-5 border-b border-zinc-100">
+      <aside className="w-56 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 flex flex-col shrink-0">
+        <div className="px-4 py-5 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-2">
             <img src="/favicon.svg" alt="Kontakti" className="w-7 h-7" />
-            <span className="font-semibold text-zinc-900 text-sm">Kontakti</span>
+            <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-sm">Kontakti</span>
           </div>
         </div>
 
         <div className="p-3">
           <button
             onClick={() => setSearchOpen(true)}
-            className="w-full flex items-center gap-2 text-sm text-zinc-400 px-3 py-2 rounded-lg border border-zinc-200 hover:border-zinc-300 transition-colors"
+            className="w-full flex items-center gap-2 text-sm text-zinc-400 dark:text-zinc-500 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 transition-colors"
           >
             <Search className="w-3.5 h-3.5" />
             <span className="flex-1 text-left">Search</span>
-            <kbd className="text-xs font-mono bg-zinc-100 px-1.5 py-0.5 rounded">⌘K</kbd>
+            <kbd className="text-xs font-mono bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400 px-1.5 py-0.5 rounded">⌘K</kbd>
           </button>
         </div>
 
@@ -127,8 +127,8 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
               className={cn(
                 'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors',
                 view === id
-                  ? 'bg-indigo-50 text-indigo-700 font-medium'
-                  : 'text-zinc-600 hover:bg-zinc-50'
+                  ? 'bg-indigo-50 dark:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 font-medium'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800'
               )}
             >
               <Icon className="w-4 h-4 shrink-0" />
@@ -152,10 +152,10 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
           ))}
         </nav>
 
-        <div className="p-3 border-t border-zinc-100 relative">
+        <div className="p-3 border-t border-zinc-100 dark:border-zinc-800 relative">
           <button
             onClick={e => { e.stopPropagation(); setMenuOpen(v => !v) }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-500 hover:bg-zinc-50 transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
           >
             <LogOut className="w-4 h-4" />
             Account
@@ -163,7 +163,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
           {menuOpen && (
             <div
-              className="absolute bottom-full left-3 right-3 mb-1 bg-white border border-zinc-200 rounded-xl shadow-lg overflow-hidden"
+              className="absolute bottom-full left-3 right-3 mb-1 bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-xl shadow-lg overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
               <button
@@ -181,9 +181,24 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         {view === 'today'       && <TodayPage />}
-        {view === 'people'      && <PeoplePage />}
-        {view === 'companies'   && <CompaniesPage />}
-        {view === 'discussions' && <DiscussionsPage />}
+        {view === 'people'      && (
+          <PeoplePage
+            openPersonId={navTarget?.type === 'person' ? navTarget.id : null}
+            onPersonOpened={() => setNavTarget(null)}
+          />
+        )}
+        {view === 'companies'   && (
+          <CompaniesPage
+            openCompanyId={navTarget?.type === 'company' ? navTarget.id : null}
+            onCompanyOpened={() => setNavTarget(null)}
+          />
+        )}
+        {view === 'discussions' && (
+          <DiscussionsPage
+            openDiscussionId={navTarget?.type === 'discussion' ? navTarget.id : null}
+            onDiscussionOpened={() => setNavTarget(null)}
+          />
+        )}
         {view === 'tasks'       && <TasksPage />}
         {view === 'notes'       && <NotesPage />}
         {view === 'feed'        && <ActivityFeedPage />}
@@ -196,7 +211,23 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       <GlobalSearch
         open={searchOpen}
         onOpenChange={setSearchOpen}
-        onNavigate={() => setSearchOpen(false)}
+        onNavigate={(url) => {
+          setSearchOpen(false)
+          // Parse /people/:id  /companies/:id  /discussions/:id
+          const [, type, id] = url.split('/')
+          if (type === 'people' && id) {
+            setView('people')
+            setNavTarget({ type: 'person', id })
+          } else if (type === 'companies' && id) {
+            setView('companies')
+            setNavTarget({ type: 'company', id })
+          } else if (type === 'discussions' && id) {
+            setView('discussions')
+            setNavTarget({ type: 'discussion', id })
+          } else if (type === 'notes') {
+            setView('notes')
+          }
+        }}
       />
 
       {/* Global voice memo FAB */}

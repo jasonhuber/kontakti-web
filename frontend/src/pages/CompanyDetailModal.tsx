@@ -102,19 +102,19 @@ export function CompanyDetailModal({ company, onClose }: Props) {
       {/* Backdrop (z-40 / panel z-50 — Tailwind default scale) */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={handleBackdropClick} />
 
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 shrink-0">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-zinc-100 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center shrink-0">
               {c.logo_url
                 ? <img src={c.logo_url} alt={c.name} className="w-10 h-10 rounded-xl object-contain" />
                 : <Building2 className="w-5 h-5 text-zinc-400" />
               }
             </div>
             <div>
-              <h2 className="text-base font-semibold text-zinc-900">{c.name}</h2>
-              {c.industry && <p className="text-sm text-zinc-500">{c.industry}</p>}
+              <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{c.name}</h2>
+              {c.industry && <p className="text-sm text-zinc-500 dark:text-zinc-400">{c.industry}</p>}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -147,12 +147,12 @@ export function CompanyDetailModal({ company, onClose }: Props) {
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-zinc-100 shrink-0">
+        <div className="flex border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <button
             onClick={() => setTab('overview')}
             className={cn(
               'flex-1 py-2.5 text-xs font-medium transition-colors',
-              tab === 'overview' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 hover:text-zinc-700'
+              tab === 'overview' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             )}
           >
             Overview
@@ -161,7 +161,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
             onClick={() => setTab('notes')}
             className={cn(
               'flex-1 py-2.5 text-xs font-medium transition-colors',
-              tab === 'notes' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 hover:text-zinc-700'
+              tab === 'notes' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
             )}
           >
             Notes
@@ -200,7 +200,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
               {c.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
                   {c.tags.map(tag => (
-                    <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-zinc-100 text-zinc-600 font-medium">
+                    <span key={tag.id} className="text-xs px-2 py-1 rounded-full bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium">
                       {tag.name}
                     </span>
                   ))}
@@ -209,18 +209,18 @@ export function CompanyDetailModal({ company, onClose }: Props) {
 
               {/* Notes/bio */}
               {c.notes && (
-                <p className="text-sm text-zinc-700 whitespace-pre-wrap">{c.notes}</p>
+                <p className="text-sm text-zinc-700 dark:text-zinc-300 whitespace-pre-wrap">{c.notes}</p>
               )}
 
               {/* People */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide">
                     <Users className="w-3.5 h-3.5" />
                     People {people && people.length > 0 && <span className="normal-case font-normal text-zinc-400">({people.length})</span>}
                   </div>
                   {dupCount > 0 && (
-                    <span className="flex items-center gap-1 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                    <span className="flex items-center gap-1 text-xs font-medium text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full">
                       <Copy className="w-3 h-3" />
                       {dupCount} possible duplicates
                     </span>
@@ -253,7 +253,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
 
               {/* Discussions */}
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 uppercase tracking-wide mb-2">
+                <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 uppercase tracking-wide mb-2">
                   <MessageSquare className="w-3.5 h-3.5" />
                   Recent discussions
                 </div>
@@ -262,14 +262,14 @@ export function CompanyDetailModal({ company, onClose }: Props) {
                   <p className="text-sm text-zinc-400">No discussions yet.</p>
                 )}
                 {disc && disc.length > 0 && (
-                  <div className="divide-y divide-zinc-100">
+                  <div className="divide-y divide-zinc-100 dark:divide-zinc-800">
                     {disc.slice(0, 10).map(d => (
                       <div key={d.id} className="py-2.5 flex items-start gap-2">
                         <span className="text-base shrink-0">{DISCUSSION_TYPE_ICONS[d.type] ?? '•'}</span>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-zinc-800 truncate">{d.title}</p>
-                          <p className="text-xs text-zinc-400">{formatRelativeDate(d.date)}</p>
-                          {d.summary && <p className="text-xs text-zinc-500 mt-0.5 line-clamp-2">{d.summary}</p>}
+                          <p className="text-sm font-medium text-zinc-800 dark:text-zinc-200 truncate">{d.title}</p>
+                          <p className="text-xs text-zinc-400 dark:text-zinc-500">{formatRelativeDate(d.date)}</p>
+                          {d.summary && <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5 line-clamp-2">{d.summary}</p>}
                         </div>
                       </div>
                     ))}
@@ -282,14 +282,14 @@ export function CompanyDetailModal({ company, onClose }: Props) {
           {tab === 'notes' && (
             <div className="space-y-3">
               {loadingNotes && (
-                <div className="flex items-center gap-2 py-4 text-zinc-400 text-sm">
+                <div className="flex items-center gap-2 py-4 text-zinc-400 dark:text-zinc-500 text-sm">
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Loading notes...
                 </div>
               )}
 
               {!loadingNotes && noteList.length === 0 && !creatingNote && (
-                <div className="text-center py-8 text-zinc-400 text-sm">
+                <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm">
                   No notes yet for {c.name}.
                 </div>
               )}
@@ -303,14 +303,14 @@ export function CompanyDetailModal({ company, onClose }: Props) {
                       className={cn(
                         'w-full text-left px-3 py-2.5 rounded-lg border transition-colors',
                         selectedNote?.id === note.id
-                          ? 'border-indigo-200 bg-indigo-50'
-                          : 'border-zinc-200 hover:border-zinc-300 hover:bg-zinc-50'
+                          ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/40'
+                          : 'border-zinc-200 dark:border-zinc-700 hover:border-zinc-300 dark:hover:border-zinc-600 hover:bg-zinc-50 dark:hover:bg-zinc-800'
                       )}
                     >
-                      <p className="text-sm font-medium text-zinc-900 truncate">
+                      <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">
                         {note.title || 'Untitled'}
                       </p>
-                      <p className="text-xs text-zinc-400 mt-0.5">{formatRelativeDate(note.updated_at)}</p>
+                      <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5">{formatRelativeDate(note.updated_at)}</p>
                     </button>
                   ))}
                 </div>
@@ -319,7 +319,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
               {!creatingNote && !selectedNote && (
                 <button
                   onClick={() => { setCreatingNote(true); setSelectedNote(null) }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 rounded-lg text-sm text-zinc-400 hover:border-zinc-400 hover:text-zinc-500 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New note
@@ -353,7 +353,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
               {!creatingNote && selectedNote && (
                 <button
                   onClick={() => { setCreatingNote(true); setSelectedNote(null) }}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 rounded-lg text-sm text-zinc-400 hover:border-zinc-400 hover:text-zinc-500 transition-colors"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 border border-dashed border-zinc-300 dark:border-zinc-600 rounded-lg text-sm text-zinc-400 dark:text-zinc-500 hover:border-zinc-400 dark:hover:border-zinc-500 hover:text-zinc-500 dark:hover:text-zinc-400 transition-colors"
                 >
                   <Plus className="w-3.5 h-3.5" />
                   New note

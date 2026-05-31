@@ -92,8 +92,8 @@ export function DuplicatesPage() {
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Duplicate review</h1>
-          <p className="text-sm text-zinc-400 mt-0.5">
+          <h1 className="text-xl font-semibold text-zinc-900 dark:text-zinc-100">Duplicate review</h1>
+          <p className="text-sm text-zinc-400 dark:text-zinc-500 mt-0.5">
             {totalPending > 0
               ? `${totalPending} pending review`
               : 'AI-assisted merging of contact duplicates'}
@@ -125,13 +125,13 @@ export function DuplicatesPage() {
       </div>
 
       {mergeMessage && (
-        <div className="mb-4 flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+        <div className="mb-4 flex items-start gap-2 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-lg px-3 py-2">
           <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{mergeMessage}</span>
         </div>
       )}
       {scanMessage && (
-        <div className="mb-4 flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-lg px-3 py-2">
+        <div className="mb-4 flex items-start gap-2 text-sm text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-lg px-3 py-2">
           <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" />
           <span>{scanMessage}</span>
         </div>

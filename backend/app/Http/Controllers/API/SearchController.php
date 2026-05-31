@@ -56,13 +56,21 @@ class SearchController extends Controller
             ->where('user_id', auth()->id())
             ->limit(5)
             ->get()
-            ->map(fn($n) => [
-                'type'     => 'note',
-                'id'       => $n->id,
-                'title'    => $n->title ?? 'Untitled note',
-                'subtitle' => substr(strip_tags($n->body), 0, 100),
-                'url'      => "/notes/{$n->id}",
-            ]);
+            ->load('notable')
+            ->map(function ($n) {
+                $isPerson = $n->notable_type === 'App\\Models\\Person' && $n->notable;
+                $personName = $isPerson ? $n->notable->full_name : null;
+                return [
+                    'type'     => 'note',
+                    'id'       => $n->id,
+                    'title'    => $n->title ?: ($personName ? "{$personName}'s note" : 'Note'),
+                    'subtitle' => $personName
+                        ? "Note · {$personName}"
+                        : substr(strip_tags($n->body ?? ''), 0, 100),
+                    // If it belongs to a person, clicking opens the person's detail.
+                    'url'      => $isPerson ? "/people/{$n->notable_id}" : "/notes/{$n->id}",
+                ];
+            });
 
         return response()->json([
             'query'   => $term,

@@ -282,6 +282,7 @@ class PeopleController extends Controller
             'device_note'           => "{$opt}|string",
             'do_not_contact'        => ($isStore ? 'nullable|' : 'sometimes|') . 'boolean',
             'do_not_contact_reason' => "{$opt}|string|max:500",
+            'preferred_contact_via' => "{$opt}|string|max:100",
             'metadata'              => "{$opt}|array",
             'tags'                  => "{$opt}|array",
 
