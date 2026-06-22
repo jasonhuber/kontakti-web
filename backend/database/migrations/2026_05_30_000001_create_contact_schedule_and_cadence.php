@@ -8,11 +8,11 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Per-person contact cadence preference. Default 'biannual' (twice a year)
-        // so every contact has a gentle default unless the user picks otherwise.
+        // Per-person contact cadence preference. Default 'quarterly' (every ~3 months)
+        // so every contact has a reasonably active default unless the user picks otherwise.
         Schema::table('people', function (Blueprint $table) {
             $table->enum('contact_cadence', ['none', 'monthly', 'quarterly', 'biannual', 'annual'])
-                  ->default('biannual')->after('next_followup_at');
+                  ->default('quarterly')->after('next_followup_at');
             $table->boolean('contact_on_birthday')->default(true)->after('contact_cadence');
             $table->boolean('contact_on_holidays')->default(false)->after('contact_on_birthday');
         });

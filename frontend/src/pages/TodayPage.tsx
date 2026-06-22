@@ -238,22 +238,14 @@ function humanInterval(days: number): string {
   return `${(days / 365).toFixed(1)} years`
 }
 
-// "I'm in the mood to reach out" — reads the precomputed contact schedule.
+// ── Due-for-outreach section ─────────────────────────────────────────────────
+
 function ReachOutSuggestions({ onOpenPerson }: { onOpenPerson: (p: Person) => void }) {
   const qc = useQueryClient()
   const { data, isLoading } = useQuery({
     queryKey: ['reach-out-suggestions'],
-    queryFn: () => contactSchedule.suggestions(6),
+    queryFn: () => contactSchedule.suggestions(8),
     staleTime: 60_000,
-  })
-
-  const completeMut = useMutation({
-    mutationFn: (id: number) => contactSchedule.complete(id),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] }),
-  })
-  const snoozeMut = useMutation({
-    mutationFn: (id: number) => contactSchedule.snooze(id, 30),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] }),
   })
 
   const openPerson = async (s: ReachOutSuggestion) => {
@@ -262,36 +254,328 @@ function ReachOutSuggestions({ onOpenPerson }: { onOpenPerson: (p: Person) => vo
 
   if (isLoading || !data || data.suggestions.length === 0) return null
 
+  const [hero, ...rest] = data.suggestions
+
   return (
-    <div className="mb-6 rounded-2xl border border-emerald-100 dark:border-emerald-900 bg-emerald-50/50 dark:bg-emerald-900/20 p-4">
+    <div className="mb-6">
       <div className="flex items-center gap-2 mb-3">
-        <Coffee className="w-4 h-4 text-emerald-600" />
-        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">In the mood to reach out?</h2>
-        <span className="text-xs text-zinc-400 dark:text-zinc-500">{data.count} due</span>
+        <Calendar className="w-4 h-4 text-indigo-500" />
+        <h2 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">
+          Due for outreach
+        </h2>
+        <span className="text-xs font-medium bg-indigo-50 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 rounded-full px-2 py-0.5">
+          {data.count}
+        </span>
       </div>
-      <div className="space-y-2">
-        {data.suggestions.map(s => (
-          <div key={s.schedule_id} className="flex items-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-100 dark:border-zinc-800 rounded-xl px-3 py-2">
-            <button onClick={() => openPerson(s)} className="min-w-0 flex-1 text-left">
-              <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100 truncate">{s.name}</div>
-              <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate">
-                {s.label ?? s.reason} · {s.last_contact}{s.company ? ` · ${s.company}` : ''}
-              </div>
-            </button>
-            <span className="text-[11px] text-emerald-700 bg-emerald-50 border border-emerald-100 rounded-full px-2 py-0.5 shrink-0">
-              {s.channel_hint}
+      <SuggestionCard
+        suggestion={hero}
+        hero
+        onOpenPerson={openPerson}
+        onLogged={() => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] })}
+      />
+      {rest.length > 0 && (
+        <div className="mt-2 rounded-xl border border-zinc-200 dark:border-zinc-700 divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden">
+          {rest.map(s => (
+            <SuggestionRow
+              key={s.schedule_id}
+              suggestion={s}
+              onOpenPerson={openPerson}
+              onLogged={() => qc.invalidateQueries({ queryKey: ['reach-out-suggestions'] })}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SuggestionCard({
+  suggestion: s,
+  hero,
+  onOpenPerson,
+  onLogged,
+}: {
+  suggestion: ReachOutSuggestion
+  hero?: boolean
+  onOpenPerson: (s: ReachOutSuggestion) => void
+  onLogged: () => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [draftOpen, setDraftOpen] = useState(false)
+  const [viaOpen, setViaOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+
+  const draftMut = useMutation({
+    mutationFn: () => contactSchedule.draft(s.schedule_id),
+    onSuccess: (r) => { setDraft(r.draft); setDraftOpen(true); setError(null) },
+    onError: (e) => setError(e instanceof Error ? e.message : 'Draft failed'),
+  })
+
+  const logMut = useMutation({
+    mutationFn: ({ via, note }: { via: LogVia; note?: string }) =>
+      peopleApi.logContact(s.person_id, via, note),
+    onSuccess: async (_, { via }) => {
+      await contactSchedule.complete(s.schedule_id).catch(() => undefined)
+      setDone(`Logged via ${via.replace('_', ' ')}`)
+      setTimeout(() => { setDone(null); onLogged() }, 1500)
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : 'Log failed'),
+  })
+
+  const snoozeMut = useMutation({
+    mutationFn: () => contactSchedule.snooze(s.schedule_id, 30),
+    onSuccess: () => onLogged(),
+  })
+
+  const personForLink = {
+    first_name: s.person_first_name,
+    last_name: '',
+    full_name: s.name,
+    email: s.person_email,
+    phone: s.person_phone,
+    whatsapp_phone: s.person_whatsapp,
+    instagram_handle: s.person_instagram,
+    facebook_url: s.person_facebook,
+  } as Person
+
+  function handleSendVia(via: LogVia) {
+    setViaOpen(false)
+    const subject = `Checking in, ${s.person_first_name}`
+    const { url, unavailableReason } = deepLinkFor(via, personForLink, draft, subject)
+    if (unavailableReason) { setError(unavailableReason); return }
+    if (url) window.open(url, '_blank', 'noopener')
+    logMut.mutate({ via, note: draft.trim() || undefined })
+  }
+
+  function handleDraftClick() {
+    if (draft) { setDraftOpen(v => !v); return }
+    draftMut.mutate()
+  }
+
+  return (
+    <div className={cn(
+      'rounded-2xl border overflow-hidden',
+      hero
+        ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-900/20'
+        : 'border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900',
+    )}>
+      <div className="flex gap-3 p-4">
+        <div className={cn(
+          'w-9 h-9 rounded-xl flex items-center justify-center shrink-0',
+          hero ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600' : 'bg-zinc-100 dark:bg-zinc-800 text-zinc-500',
+        )}>
+          <Calendar className="w-4 h-4" />
+        </div>
+        <button onClick={() => onOpenPerson(s)} className="flex-1 min-w-0 text-left group">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 group-hover:text-indigo-700 truncate">
+              {s.name}
             </span>
-            <button onClick={() => completeMut.mutate(s.schedule_id)} disabled={completeMut.isPending}
-              title="Mark reached out" className="text-xs text-emerald-700 hover:text-emerald-800 px-1.5 py-1 rounded-md shrink-0">
-              Done
-            </button>
-            <button onClick={() => snoozeMut.mutate(s.schedule_id)} disabled={snoozeMut.isPending}
-              title="Snooze 30 days" className="text-xs text-zinc-400 hover:text-zinc-600 px-1.5 py-1 rounded-md shrink-0">
-              Later
-            </button>
+            {s.company && (
+              <span className="text-xs text-zinc-400 dark:text-zinc-500 truncate">· {s.company}</span>
+            )}
+            {s.overdue_days != null && s.overdue_days > 0 && (
+              <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-100 dark:bg-red-900/30 dark:border-red-800 dark:text-red-400 rounded-full px-1.5 py-0.5 shrink-0">
+                {s.overdue_days}d overdue
+              </span>
+            )}
           </div>
-        ))}
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{s.why}</p>
+        </button>
       </div>
+
+      {draftOpen && (
+        <div className="px-4 pb-3 -mt-1">
+          <textarea
+            value={draft}
+            onChange={e => setDraft(e.target.value)}
+            placeholder="Write your message…"
+            rows={3}
+            className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400 resize-none dark:bg-zinc-800 dark:text-zinc-100"
+          />
+          <p className="text-[11px] text-zinc-400 dark:text-zinc-500 mt-1">
+            Edit then use "Reach out" to open the right app with this pre-filled.
+          </p>
+        </div>
+      )}
+
+      {error && (
+        <div className="mx-4 mb-2 text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-100 dark:border-red-800 rounded-md px-2 py-1.5">
+          {error}
+        </div>
+      )}
+      {done && (
+        <div className="mx-4 mb-2 text-xs text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 rounded-md px-2 py-1.5">
+          {done}
+        </div>
+      )}
+
+      <div className="px-4 py-2.5 border-t border-zinc-100 dark:border-zinc-800 bg-zinc-50/50 dark:bg-zinc-800/30 flex items-center gap-2 flex-wrap">
+        <button
+          onClick={handleDraftClick}
+          disabled={draftMut.isPending}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-indigo-700 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 px-2.5 py-1.5 rounded-md transition-colors disabled:opacity-60"
+        >
+          {draftMut.isPending
+            ? <Loader2 className="w-3 h-3 animate-spin" />
+            : <Sparkles className="w-3 h-3" />}
+          {draftOpen ? 'Hide draft' : (draft ? 'Edit draft' : 'Draft message')}
+        </button>
+
+        <div className="relative">
+          <button
+            onClick={() => setViaOpen(v => !v)}
+            disabled={logMut.isPending}
+            className="inline-flex items-center gap-1 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-2.5 py-1.5 rounded-md transition-colors"
+          >
+            {logMut.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+            Reach out
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {viaOpen && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setViaOpen(false)} />
+              <div className="absolute left-0 top-full mt-1 z-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg overflow-hidden min-w-[160px]">
+                {VIA_OPTIONS.map(opt => {
+                  const Icon = opt.icon
+                  return (
+                    <button
+                      key={opt.value}
+                      onClick={() => handleSendVia(opt.value)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="ml-auto">
+          <button
+            onClick={() => snoozeMut.mutate()}
+            disabled={snoozeMut.isPending}
+            className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 px-2 py-1 rounded-md transition-colors"
+          >
+            {snoozeMut.isPending ? '…' : 'Later'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SuggestionRow({
+  suggestion: s,
+  onOpenPerson,
+  onLogged,
+}: {
+  suggestion: ReachOutSuggestion
+  onOpenPerson: (s: ReachOutSuggestion) => void
+  onLogged: () => void
+}) {
+  const [viaOpen, setViaOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [done, setDone] = useState<string | null>(null)
+
+  const logMut = useMutation({
+    mutationFn: ({ via }: { via: LogVia }) =>
+      peopleApi.logContact(s.person_id, via),
+    onSuccess: async (_, { via }) => {
+      await contactSchedule.complete(s.schedule_id).catch(() => undefined)
+      setDone(`✓ ${via.replace('_', ' ')}`)
+      setTimeout(() => { setDone(null); onLogged() }, 1200)
+    },
+    onError: (e) => setError(e instanceof Error ? e.message : 'Failed'),
+  })
+
+  const snoozeMut = useMutation({
+    mutationFn: () => contactSchedule.snooze(s.schedule_id, 30),
+    onSuccess: () => onLogged(),
+  })
+
+  const personForLink = {
+    first_name: s.person_first_name,
+    last_name: '',
+    full_name: s.name,
+    email: s.person_email,
+    phone: s.person_phone,
+    whatsapp_phone: s.person_whatsapp,
+    instagram_handle: s.person_instagram,
+    facebook_url: s.person_facebook,
+  } as Person
+
+  function handleSendVia(via: LogVia) {
+    setViaOpen(false)
+    const { url, unavailableReason } = deepLinkFor(via, personForLink, '', `Hi ${s.person_first_name}`)
+    if (unavailableReason) { setError(unavailableReason); return }
+    if (url) window.open(url, '_blank', 'noopener')
+    logMut.mutate({ via })
+  }
+
+  return (
+    <div className="px-3 py-2.5 flex items-center gap-3 bg-white dark:bg-zinc-900">
+      <button onClick={() => onOpenPerson(s)} className="flex-1 min-w-0 text-left">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-sm font-medium text-zinc-800 dark:text-zinc-100 truncate">{s.name}</span>
+          {s.overdue_days != null && s.overdue_days > 0 && (
+            <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-100 dark:bg-amber-900/30 dark:border-amber-800 dark:text-amber-400 rounded-full px-1.5 py-0.5 shrink-0">
+              {s.overdue_days}d
+            </span>
+          )}
+        </div>
+        {s.company && <div className="text-xs text-zinc-400 dark:text-zinc-500 truncate">{s.company}</div>}
+      </button>
+
+      {error && <span className="text-xs text-red-500 shrink-0">{error}</span>}
+      {done && <span className="text-xs text-emerald-600 dark:text-emerald-400 font-medium shrink-0">{done}</span>}
+
+      {!done && (
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="relative">
+            <button
+              onClick={() => setViaOpen(v => !v)}
+              disabled={logMut.isPending}
+              className="inline-flex items-center gap-0.5 text-xs font-medium bg-indigo-600 hover:bg-indigo-700 disabled:opacity-60 text-white px-2 py-1 rounded-md transition-colors"
+            >
+              {logMut.isPending && <Loader2 className="w-3 h-3 animate-spin" />}
+              Reach out
+              <ChevronDown className="w-3 h-3" />
+            </button>
+            {viaOpen && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setViaOpen(false)} />
+                <div className="absolute right-0 top-full mt-1 z-20 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-lg shadow-lg overflow-hidden min-w-[150px]">
+                  {VIA_OPTIONS.map(opt => {
+                    const Icon = opt.icon
+                    return (
+                      <button
+                        key={opt.value}
+                        onClick={() => handleSendVia(opt.value)}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs text-zinc-700 dark:text-zinc-300 hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                      >
+                        <Icon className="w-3.5 h-3.5 text-zinc-400" />
+                        {opt.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+          </div>
+          <button
+            onClick={() => snoozeMut.mutate()}
+            disabled={snoozeMut.isPending}
+            className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-600 dark:hover:text-zinc-300 px-1.5 py-1 rounded-md transition-colors"
+          >
+            Later
+          </button>
+        </div>
+      )}
     </div>
   )
 }

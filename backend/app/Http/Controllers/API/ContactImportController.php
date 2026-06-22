@@ -55,6 +55,19 @@ class ContactImportController extends Controller
             }
         }
 
+        // Pre-load existing phones (digits-only normalized) for this user.
+        // Used to dedup phone-only contacts that would slip past the email check.
+        $personIds = $user->people()->pluck('id');
+        $existingPhones = [];
+        $user->people()->whereNotNull('phone')->pluck('phone')->each(function ($p) use (&$existingPhones) {
+            $key = preg_replace('/\D/', '', $p);
+            if ($key !== '') $existingPhones[$key] = true;
+        });
+        \App\Models\PersonPhone::whereIn('person_id', $personIds)->pluck('value')->each(function ($p) use (&$existingPhones) {
+            $key = preg_replace('/\D/', '', $p);
+            if ($key !== '') $existingPhones[$key] = true;
+        });
+
         foreach ($request->input('contacts') as $rawContact) {
             $contact = $this->normalizeContact($rawContact);
 
@@ -79,6 +92,23 @@ class ContactImportController extends Controller
                     break;
                 }
             }
+
+            // Also skip if a phone number matches — catches phone-only contacts.
+            if (!$duplicate && $contact['phone']) {
+                $candidatePhones = [preg_replace('/\D/', '', $contact['phone'])];
+                foreach (($contact['phones'] ?? []) as $p) {
+                    if (!empty($p['value'])) {
+                        $candidatePhones[] = preg_replace('/\D/', '', $p['value']);
+                    }
+                }
+                foreach ($candidatePhones as $ph) {
+                    if ($ph !== '' && isset($existingPhones[$ph])) {
+                        $duplicate = true;
+                        break;
+                    }
+                }
+            }
+
             if ($duplicate) {
                 $skipped++;
                 continue;
@@ -163,9 +193,19 @@ class ContactImportController extends Controller
                 $sync->apply($person, $emailsArr, $phonesArr);
             }
 
-            // Track every new email so subsequent contacts in this batch dedup correctly.
+            // Track every new email/phone so subsequent contacts in this batch dedup correctly.
             foreach ($candidateEmails as $em) {
                 $existingEmails[$em] = $person->id;
+            }
+            if ($contact['phone']) {
+                $ph = preg_replace('/\D/', '', $contact['phone']);
+                if ($ph !== '') $existingPhones[$ph] = true;
+            }
+            foreach (($contact['phones'] ?? []) as $p) {
+                if (!empty($p['value'])) {
+                    $ph = preg_replace('/\D/', '', $p['value']);
+                    if ($ph !== '') $existingPhones[$ph] = true;
+                }
             }
 
             $people[]  = $person->load(['company.tags', 'tags', 'emails', 'phones']);

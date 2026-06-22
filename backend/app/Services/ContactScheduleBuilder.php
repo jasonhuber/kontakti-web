@@ -80,15 +80,19 @@ class ContactScheduleBuilder
         //    overdue, the due date stays in the past so they surface as overdue in
         //    "who should I reach out to". Once contacted, last_contacted_at advances
         //    and the next rebuild recomputes (and auto-completes the satisfied row).
-        //    A brand-new contact (no last_contacted_at) anchors at now, so their
-        //    first check-in is one interval out — not immediately overdue.
+        //    A brand-new contact (no last_contacted_at) gets its first check-in
+        //    staggered deterministically across the cadence window, so a fresh
+        //    import becomes a steady daily reconnect stream instead of one giant
+        //    wave landing on a single day. Once contacted, it re-anchors normally.
         if ($person->contact_cadence && $person->contact_cadence !== 'none') {
             $days = self::CADENCE_DAYS[$person->contact_cadence] ?? null;
             if ($days) {
-                $anchor = $person->last_contacted_at
-                    ? Carbon::parse($person->last_contacted_at)->startOfDay()
-                    : $now->copy()->startOfDay();
-                $next = $anchor->copy()->addDays($days);
+                if ($person->last_contacted_at) {
+                    $next = Carbon::parse($person->last_contacted_at)->startOfDay()->addDays($days);
+                } else {
+                    $offset = (int) (abs(crc32($person->id)) % $days);
+                    $next = $now->copy()->startOfDay()->addDays($offset);
+                }
                 // Record overdue (past) and near-future dates; skip far-future
                 // (> horizon) — those get recorded once they enter the 6-month window.
                 if ($next->lte($horizon)) {

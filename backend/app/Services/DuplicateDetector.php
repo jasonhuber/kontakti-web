@@ -843,8 +843,49 @@ class DuplicateDetector
                     ->where('object_id', $id)
                     ->update(['object_id' => $primaryId]);
 
+                // person_photos — carry the sibling's photos onto the primary so
+                // they aren't orphaned on the soft-deleted person. Primary-flag
+                // is normalised after the loop.
+                DB::table('person_photos')
+                    ->where('person_id', $id)
+                    ->update(['person_id' => $primaryId]);
+
+                // apple_contact_links — UNIQUE (user_id, person_id). If the
+                // primary is already linked to an Apple contact, keep that link
+                // and drop the sibling's; otherwise move the sibling's link onto
+                // the primary so Apple writeback keeps working post-merge.
+                $primaryHasLink = DB::table('apple_contact_links')
+                    ->where('user_id', $userId)
+                    ->where('person_id', $primaryId)
+                    ->exists();
+                if ($primaryHasLink) {
+                    DB::table('apple_contact_links')
+                        ->where('user_id', $userId)
+                        ->where('person_id', $id)
+                        ->delete();
+                } else {
+                    DB::table('apple_contact_links')
+                        ->where('user_id', $userId)
+                        ->where('person_id', $id)
+                        ->update(['person_id' => $primaryId]);
+                }
+
                 // Soft-delete the non-primary person (Person uses SoftDeletes).
                 $other->delete();
+            }
+
+            // Normalise photo primaries: after merging, the survivor may have
+            // several photos flagged primary. Keep the lowest sort_order one.
+            $primaryPhotoIds = DB::table('person_photos')
+                ->where('person_id', $primaryId)
+                ->where('is_primary', true)
+                ->orderBy('sort_order')
+                ->pluck('id');
+            if ($primaryPhotoIds->count() > 1) {
+                DB::table('person_photos')
+                    ->where('person_id', $primaryId)
+                    ->where('id', '!=', $primaryPhotoIds->first())
+                    ->update(['is_primary' => false]);
             }
 
             $candidate->status      = 'merged';

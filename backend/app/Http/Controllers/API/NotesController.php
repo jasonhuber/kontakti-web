@@ -13,7 +13,9 @@ class NotesController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Note::where('user_id', auth()->id())->with('tags')->orderByDesc('updated_at');
+        $query = Note::where('user_id', auth()->id())
+            ->with(['tags', 'notable'])
+            ->orderByDesc('updated_at');
 
         if ($search = $request->get('q')) {
             $query->search($search);
@@ -24,7 +26,19 @@ class NotesController extends Controller
                   ->where('notable_id', $request->get('notable_id'));
         }
 
-        return response()->json($query->paginate(50));
+        $paginator = $query->paginate(50);
+
+        // Append a human label for what each note is attached to, so the global
+        // Notes view can show "→ Ken Pogancy" / "→ Acme Corp" vs "Unfiled".
+        // This is how a user finds a note again instead of thinking it vanished.
+        $paginator->through(function (Note $note) {
+            $n = $note->notable;
+            $note->setAttribute('notable_label', $n?->full_name ?? $n?->name ?? null);
+            $note->setAttribute('notable_kind', $note->notable_type ? class_basename($note->notable_type) : null);
+            return $note;
+        });
+
+        return response()->json($paginator);
     }
 
     public function store(Request $request): JsonResponse

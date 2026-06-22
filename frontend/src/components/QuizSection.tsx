@@ -63,7 +63,7 @@ export function QuizSection({
             </h2>
             <p className="text-xs text-zinc-400">
               {allDone
-                ? `Thanks! Saved ${answeredCount} answer${answeredCount === 1 ? '' : 's'} today. Come back tomorrow.`
+                ? `Saved ${answeredCount} answer${answeredCount === 1 ? '' : 's'} — loading more…`
                 : `${visible.length} quick question${visible.length === 1 ? '' : 's'} about your contacts`}
             </p>
           </div>
@@ -110,7 +110,7 @@ export function QuizSection({
 
       {!collapsed && allDone && (
         <div className="text-sm text-zinc-500 bg-indigo-50/40 border border-indigo-100 rounded-xl px-4 py-3">
-          Thanks! Saved {answeredCount} answer{answeredCount === 1 ? '' : 's'} today. Come back tomorrow for more.
+          Saved {answeredCount} answer{answeredCount === 1 ? '' : 's'} — loading more…
         </div>
       )}
     </section>
@@ -247,8 +247,19 @@ export function QuizCard({
           />
         </div>
 
+        {/* Save note — visible as its own button once the user types anything */}
+        {note.trim() && (
+          <button
+            onClick={() => answerMut.mutate(note.trim())}
+            disabled={busy}
+            className="w-full text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 rounded-lg disabled:opacity-50 transition-colors"
+          >
+            {answerMut.isPending ? 'Saving…' : 'Save note →'}
+          </button>
+        )}
+
         {/* Footer */}
-        <div className="flex items-center justify-between mt-3 pt-2 border-t border-zinc-100">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-zinc-100">
           <button
             onClick={() => skipMut.mutate()}
             disabled={busy}
@@ -257,7 +268,7 @@ export function QuizCard({
             <XIcon className="w-3 h-3" />
             Skip
           </button>
-          {answerMut.isPending && (
+          {(answerMut.isPending || skipMut.isPending) && (
             <Loader2 className="w-3 h-3 text-indigo-500 animate-spin" />
           )}
         </div>

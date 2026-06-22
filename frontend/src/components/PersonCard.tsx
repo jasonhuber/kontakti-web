@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { type Person, type RelationshipStrength } from '@/lib/api'
 import { STRENGTH_COLORS, STRENGTH_LABELS, formatRelativeDate, cn } from '@/lib/utils'
 import { Building2, Clock, Calendar, Ban } from 'lucide-react'
@@ -99,13 +100,15 @@ export function PersonCard({ person, onClick, compact }: Props) {
 
 function Avatar({ initials, url, size }: { initials: string; url?: string; size: 'sm' | 'md' }) {
   const sizeClass = size === 'sm' ? 'w-7 h-7 text-xs' : 'w-10 h-10 text-sm'
+  // Fall back to initials if the photo fails to load (e.g. LinkedIn URL 404/525).
+  const [failed, setFailed] = useState(false)
   return (
     <div className={cn(
       'rounded-full bg-indigo-100 flex items-center justify-center shrink-0 font-medium text-indigo-600 overflow-hidden',
       sizeClass,
     )}>
-      {url
-        ? <img src={url} alt={initials} className={cn('rounded-full object-cover', sizeClass)} />
+      {url && !failed
+        ? <img src={url} alt={initials} onError={() => setFailed(true)} className={cn('rounded-full object-cover', sizeClass)} />
         : <span className="truncate px-1 select-none">{initials}</span>}
     </div>
   )

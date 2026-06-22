@@ -15,12 +15,14 @@ import { SettingsPage } from '@/pages/SettingsPage'
 import { TodayPage } from '@/pages/TodayPage'
 import { SocialGroupsPage } from '@/pages/SocialGroupsPage'
 import { ReviewContactsPage } from '@/pages/ReviewContactsPage'
-import { auth, duplicates, today as todayApi, people as peopleApi } from '@/lib/api'
+import { ReconnectPage } from '@/pages/ReconnectPage'
+import { ProgressPage } from '@/pages/ProgressPage'
+import { auth, duplicates, today as todayApi, people as peopleApi, gamification as gamificationApi } from '@/lib/api'
 import { isPushSupported, registerServiceWorker } from '@/lib/push'
 import { VoiceCaptureFlow } from '@/components/VoiceCaptureFlow'
 import {
   Search, Users, Building2, Share2, Settings, Activity, LogOut, Mic,
-  CheckSquare, FileText, Copy, Sunrise, UsersRound, ShieldCheck,
+  CheckSquare, FileText, Copy, Sunrise, UsersRound, ShieldCheck, RefreshCcw, Trophy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -29,11 +31,13 @@ const queryClient = new QueryClient({
 })
 
 type View =
-  | 'today' | 'people' | 'companies' | 'discussions' | 'tasks' | 'notes' | 'feed'
-  | 'groups' | 'duplicates' | 'review' | 'settings'
+  | 'today' | 'progress' | 'people' | 'companies' | 'discussions' | 'tasks' | 'notes' | 'feed'
+  | 'groups' | 'duplicates' | 'review' | 'reconnect' | 'settings'
 
 const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: 'today',        label: 'Today',        icon: Sunrise },
+  { id: 'progress',     label: 'Progress',     icon: Trophy },
+  { id: 'reconnect',    label: 'Reconnect',    icon: RefreshCcw },
   { id: 'people',       label: 'People',       icon: Users },
   { id: 'companies',    label: 'Companies',    icon: Building2 },
   { id: 'discussions',  label: 'Discussions',  icon: Share2 },
@@ -88,6 +92,13 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     staleTime: 5_000,
   })
   const todayCount = todayItems?.count ?? todayItems?.items?.length ?? 0
+
+  const { data: gameData } = useQuery({
+    queryKey: ['gamification'],
+    queryFn: () => gamificationApi.dashboard(),
+    staleTime: 5_000,
+  })
+  const goalRemaining = gameData?.goal?.remaining ?? 0
 
   // Close user menu when clicking outside
   useEffect(() => {
@@ -148,6 +159,11 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
                   {todayCount}
                 </span>
               )}
+              {id === 'progress' && goalRemaining > 0 && (
+                <span className="ml-auto text-[10px] font-semibold bg-indigo-600 text-white rounded-full px-1.5 py-0.5 min-w-[18px] text-center">
+                  {goalRemaining}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -181,6 +197,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       {/* Main content */}
       <main className="flex-1 overflow-auto">
         {view === 'today'       && <TodayPage />}
+        {view === 'progress'    && <ProgressPage />}
         {view === 'people'      && (
           <PeoplePage
             openPersonId={navTarget?.type === 'person' ? navTarget.id : null}
@@ -205,6 +222,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {view === 'groups'      && <SocialGroupsPage />}
         {view === 'duplicates'  && <DuplicatesPage />}
         {view === 'review'      && <ReviewContactsPage />}
+        {view === 'reconnect'   && <ReconnectPage />}
         {view === 'settings'    && <SettingsPage />}
       </main>
 

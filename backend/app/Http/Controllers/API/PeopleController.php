@@ -3,10 +3,10 @@
 namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
-use App\Models\{Person, Company, ActivityFeedItem};
+use App\Models\{Person, Company, ActivityFeedItem, ReachOutLog, ContactScheduleItem};
 use App\Services\PersonContactSync;
 use Illuminate\Http\{Request, JsonResponse};
-use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\{Http, Storage};
 use Illuminate\Validation\Rule;
 
 class PeopleController extends Controller
@@ -432,6 +432,73 @@ class PeopleController extends Controller
         );
     }
 
+    /**
+     * Quick-log a direct outreach for a person (not gated behind the Today queue).
+     * POST /people/{person}/log-contact  { via, note? }
+     */
+    public function logContact(Request $request, Person $person): JsonResponse
+    {
+        abort_if($person->user_id !== auth()->id(), 403);
+
+        $data = $request->validate([
+            'via'  => 'required|in:email,phone,sms,imessage,whatsapp,instagram,facebook,in_person,other',
+            'note' => 'nullable|string|max:2000',
+        ]);
+
+        ReachOutLog::create([
+            'user_id'   => auth()->id(),
+            'person_id' => $person->id,
+            'via'       => $data['via'],
+            'reason'    => 'manual',
+            'note'      => $data['note'] ?? null,
+        ]);
+
+        $person->update(['last_contacted_at' => now()]);
+        $person->refresh();
+
+        // Mark any pending cadence schedule items for this person as done.
+        ContactScheduleItem::where('user_id', auth()->id())
+            ->where('person_id', $person->id)
+            ->where('status', 'pending')
+            ->update(['status' => 'done']);
+
+        return response()->json([
+            'last_contacted_at' => $person->last_contacted_at?->toIso8601String(),
+            'next_followup_at'  => $person->next_followup_at?->toIso8601String(),
+        ], 201);
+    }
+
+    /**
+     * People who most need a reach-out, sorted by longest silence first.
+     * GET /people/reconnect  ?limit=50&page=1
+     */
+    public function reconnect(Request $request): JsonResponse
+    {
+        $cadenceDays = ['none' => null, 'monthly' => 30, 'quarterly' => 90, 'biannual' => 182, 'annual' => 365];
+
+        $people = auth()->user()->people()
+            ->with(['company:id,name', 'tags'])
+            ->where('do_not_contact', false)
+            ->whereNull('deleted_at')
+            ->orderByRaw('last_contacted_at IS NOT NULL, last_contacted_at ASC')
+            ->paginate((int) $request->get('limit', 50));
+
+        $people->getCollection()->transform(function ($p) use ($cadenceDays) {
+            $days = $p->last_contacted_at
+                ? (int) now()->diffInDays($p->last_contacted_at)
+                : null;
+            $target = $cadenceDays[$p->contact_cadence] ?? null;
+            $overdue = $target !== null && ($days === null || $days > $target);
+            $p->days_since_contact = $days;
+            $p->cadence_target_days = $target;
+            $p->is_overdue = $overdue;
+            $p->overdue_by_days = ($overdue && $days !== null && $target !== null) ? ($days - $target) : null;
+            return $p;
+        });
+
+        return response()->json($people);
+    }
+
     public function enrich(Request $request): JsonResponse
     {
         $data = $request->validate([
@@ -498,9 +565,66 @@ class PeopleController extends Controller
                 ],
             ],
         ]);
+
+        // Re-host the LinkedIn avatar onto our own storage. LinkedIn CDN URLs
+        // (licdn.com) expire and start returning 404/525, so storing the live
+        // hotlink leaves broken photos. Download once and serve from our domain.
+        if ($rehosted = $this->rehostAvatar($p['avatar_url'] ?? null, $person->id)) {
+            if ($rehosted !== $person->avatar_url) {
+                $person->update(['avatar_url' => $rehosted]);
+            }
+        }
+
         auth()->user()->markOnboarded();
 
         return response()->json($person->load(['company', 'tags']), 201);
+    }
+
+    /**
+     * Download a remote avatar (e.g. a LinkedIn CDN URL that will later expire)
+     * and store it on our public disk, returning a stable URL on our own
+     * domain. Returns the original URL unchanged on any failure, and leaves
+     * already-local URLs alone. Requires `php artisan storage:link` and a
+     * correct APP_URL.
+     */
+    private function rehostAvatar(?string $remoteUrl, string $personId): ?string
+    {
+        if (!$remoteUrl) {
+            return null;
+        }
+
+        $appUrl = rtrim((string) config('app.url'), '/');
+        // Already re-hosted on our domain — don't re-download.
+        if ($appUrl !== '' && str_starts_with($remoteUrl, $appUrl)) {
+            return $remoteUrl;
+        }
+
+        try {
+            $resp = Http::timeout(15)->get($remoteUrl);
+            if ($resp->failed()) {
+                return $remoteUrl;
+            }
+            $body = $resp->body();
+            if (strlen($body) < 100) {
+                return $remoteUrl; // too small to be a real image
+            }
+
+            $contentType = (string) $resp->header('Content-Type');
+            $ext = match (true) {
+                str_contains($contentType, 'png')  => 'png',
+                str_contains($contentType, 'webp') => 'webp',
+                str_contains($contentType, 'gif')  => 'gif',
+                default                             => 'jpg',
+            };
+
+            $path = "avatars/{$personId}.{$ext}";
+            Storage::disk('public')->put($path, $body);
+
+            return ($appUrl !== '' ? $appUrl : '') . '/storage/' . $path;
+        } catch (\Throwable) {
+            // Fall back to the hotlink; the frontend shows initials if it 404s.
+            return $remoteUrl;
+        }
     }
 
     /**
@@ -554,6 +678,9 @@ class PeopleController extends Controller
                 $p   = $raw['person'] ?? $raw;
                 $avatar = $p['avatar_url'] ?? null;
                 if (!$avatar) { $failed++; continue; }
+
+                // Re-host onto our domain so the photo doesn't 404/525 later.
+                $avatar = $this->rehostAvatar($avatar, $person->id) ?? $avatar;
 
                 Person::where('id', $person->id)->update(['avatar_url' => $avatar]);
                 // Also persist as a PersonPhoto so the gallery shows it and

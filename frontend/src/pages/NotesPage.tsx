@@ -92,7 +92,19 @@ export function NotesPage() {
               <p className="text-xs text-zinc-400 dark:text-zinc-500 mt-0.5 line-clamp-2">
                 {note.body.replace(/<[^>]+>/g, '').slice(0, 80) || '—'}
               </p>
-              <p className="text-xs text-zinc-300 dark:text-zinc-600 mt-1">{formatRelativeDate(note.updated_at)}</p>
+              <div className="flex items-center gap-1.5 mt-1">
+                <span
+                  className={cn(
+                    'text-[10px] px-1.5 py-0.5 rounded-full font-medium',
+                    note.notable_label
+                      ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-300'
+                      : 'bg-zinc-100 text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500'
+                  )}
+                >
+                  {note.notable_label ? `↳ ${note.notable_label}` : 'Unfiled'}
+                </span>
+                <span className="text-xs text-zinc-300 dark:text-zinc-600">{formatRelativeDate(note.updated_at)}</span>
+              </div>
             </button>
           ))}
         </div>

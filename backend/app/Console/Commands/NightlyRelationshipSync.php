@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\User;
 use App\Services\{GmailSyncService, JobChangeDetector, PushDispatcher, SocialActivityRefresher, TodayInbox};
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -99,21 +100,41 @@ class NightlyRelationshipSync extends Command
         // 4) Build today inbox + push
         try {
             $items = $this->todayInbox->forUser($user, 20);
-            if (!empty($items)) {
+
+            // Cadence-based reach-outs due today (the "Reconnect" schedule), which
+            // TodayInbox doesn't surface for contacts that have never been logged.
+            // Mirror exactly what the app's reconnect panel surfaces (the `due()`
+            // scope, excluding do-not-contact, one row per person) so the push count
+            // never disagrees with what the user sees when they tap in.
+            $dueReachOuts = \App\Models\ContactScheduleItem::where('user_id', $user->id)
+                ->due()
+                ->whereHas('person', fn ($q) => $q->where('do_not_contact', false))
+                ->distinct('person_id')
+                ->count('person_id');
+
+            if (!empty($items) || $dueReachOuts > 0) {
                 $kinds = [];
                 foreach ($items as $i) {
                     $kinds[$i['kind']] = ($kinds[$i['kind']] ?? 0) + 1;
                 }
-                $body = $this->describeKinds($kinds);
-                $sent = $this->push->send(
+                $parts = [];
+                if (!empty($kinds)) {
+                    $parts[] = $this->describeKinds($kinds);
+                }
+                if ($dueReachOuts > 0) {
+                    $parts[] = $dueReachOuts . ($dueReachOuts === 1 ? ' person to reach out to' : ' people to reach out to');
+                }
+                $body  = implode(' · ', $parts);
+                $count = count($items) + $dueReachOuts;
+                $sent  = $this->push->send(
                     $user,
-                    'Today: ' . count($items) . ' reach-outs',
+                    'Kontakti: ' . $count . ' reach-out' . ($count === 1 ? '' : 's') . ' today',
                     $body,
                     ['deeplink' => 'kontakti://today']
                 );
                 $this->line("   push: sent={$sent} body=\"{$body}\"");
             } else {
-                $this->line('   push: skipped (empty today inbox)');
+                $this->line('   push: skipped (nothing due)');
             }
         } catch (\Throwable $e) {
             Log::warning('NightlySync today/push failed', ['user_id' => $user->id, 'err' => $e->getMessage()]);

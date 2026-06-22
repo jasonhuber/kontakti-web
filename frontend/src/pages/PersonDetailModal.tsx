@@ -4,6 +4,7 @@ import {
   people, activity as activityApi, quiz as quizApi, discussions as discussionsApi,
   type Person, type TimelineEvent, type Note, type SocialActivity, type ContactPrompt,
   type DiscussionType, type Discussion, type Task, type ReachOutLog, type RelationshipStrength,
+  type LogVia,
 } from '@/lib/api'
 import {
   instagramProfile, facebookProfile, whatsappLink,
@@ -95,6 +96,22 @@ function initials(p: Person) {
   return makeInitials(p.first_name, p.last_name, p.full_name)
 }
 
+/**
+ * Detail-header avatar. Falls back to initials if the photo URL fails to load
+ * (e.g. an expired LinkedIn CDN URL returning 404/525) instead of showing a
+ * broken-image icon.
+ */
+function HeaderAvatar({ url, alt, fallback }: { url?: string | null; alt: string; fallback: string }) {
+  const [failed, setFailed] = useState(false)
+  return (
+    <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-lg shrink-0 overflow-hidden">
+      {url && !failed
+        ? <img src={url} alt={alt} onError={() => setFailed(true)} className="w-12 h-12 rounded-full object-cover" />
+        : fallback}
+    </div>
+  )
+}
+
 
 export function PersonDetailModal({ person, onClose }: Props) {
   const queryClient = useQueryClient()
@@ -151,6 +168,13 @@ export function PersonDetailModal({ person, onClose }: Props) {
     },
   })
 
+  const [googleMsg, setGoogleMsg] = useState<string | null>(null)
+  const pushGoogleMut = useMutation({
+    mutationFn: () => people.pushToGoogle(person.id),
+    onSuccess: (r) => setGoogleMsg(`Pushed to Google Contacts${r.account_email ? ` (${r.account_email})` : ''}.`),
+    onError: (e: unknown) => setGoogleMsg(e instanceof Error ? e.message : 'Push to Google failed.'),
+  })
+
   const p = detail ?? person
   const isOverdue = p.next_followup_at && new Date(p.next_followup_at) < new Date()
   const noteList = notesData?.data ?? []
@@ -188,12 +212,7 @@ export function PersonDetailModal({ person, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 font-semibold text-lg shrink-0">
-              {p.avatar_url
-                ? <img src={p.avatar_url} alt={p.full_name} className="w-12 h-12 rounded-full object-cover" />
-                : initials(p)
-              }
-            </div>
+            <HeaderAvatar url={p.avatar_url} alt={p.full_name} fallback={initials(p)} />
             <div>
               <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">{p.full_name}</h2>
               {(p.title || p.company) && (
@@ -465,6 +484,32 @@ export function PersonDetailModal({ person, onClose }: Props) {
               {/* What you remember about them */}
               <RememberPanel person={p} answers={quizHistory ?? []} />
 
+              {/* Sync — push this contact's current fields to Google Contacts */}
+              {!p.do_not_contact && (
+                <div>
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-zinc-500 dark:text-zinc-400 mb-2">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    Sync
+                  </div>
+                  <button
+                    onClick={() => { setGoogleMsg(null); pushGoogleMut.mutate() }}
+                    disabled={pushGoogleMut.isPending}
+                    className="flex items-center gap-2 text-sm px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-50 dark:hover:bg-zinc-800 disabled:opacity-50"
+                  >
+                    {pushGoogleMut.isPending
+                      ? <Loader2 className="w-4 h-4 animate-spin" />
+                      : <Send className="w-4 h-4" />}
+                    Push to Google Contacts
+                  </button>
+                  {googleMsg && (
+                    <p className={cn(
+                      'text-xs mt-1.5',
+                      pushGoogleMut.isError ? 'text-red-500' : 'text-green-600 dark:text-green-400'
+                    )}>{googleMsg}</p>
+                  )}
+                </div>
+              )}
+
               {/* Activity */}
               <ActivityPanel
                 person={p}
@@ -492,8 +537,13 @@ export function PersonDetailModal({ person, onClose }: Props) {
               )}
 
               {!loadingNotes && noteList.length === 0 && !creatingNote && (
-                <div className="text-center py-8 text-zinc-400 dark:text-zinc-500 text-sm">
-                  No notes yet for {p.first_name}.
+                <div className="text-center py-8 px-4 text-zinc-400 dark:text-zinc-500 text-sm space-y-2">
+                  <p>No notes yet for {p.first_name}.</p>
+                  <p className="text-xs text-zinc-400 dark:text-zinc-500 leading-relaxed">
+                    Notes here are standalone write-ups. A note you added while
+                    logging a call or meeting lives under the <span className="font-medium">Interactions</span> tab,
+                    and the short bio is under <span className="font-medium">About</span> on the Overview tab.
+                  </p>
                 </div>
               )}
 
@@ -730,6 +780,63 @@ function ActivityRow({ item, onAcknowledge }: { item: SocialActivity; onAcknowle
 
 // ── Interactions tab ─────────────────────────────────────────────────────────
 
+const QUICK_LOG_OPTIONS: { via: LogVia; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { via: 'phone',     label: 'Called',    icon: Phone },
+  { via: 'sms',       label: 'Texted',    icon: MessageSquare },
+  { via: 'imessage',  label: 'iMessage',  icon: MessageCircle },
+  { via: 'email',     label: 'Emailed',   icon: Mail },
+  { via: 'in_person', label: 'In person', icon: Users },
+  { via: 'facebook',  label: 'Facebook',  icon: Facebook },
+  { via: 'whatsapp',  label: 'WhatsApp',  icon: MessageCircle },
+  { via: 'instagram', label: 'Instagram', icon: Instagram },
+]
+
+function QuickLogBar({ person }: { person: Person }) {
+  const queryClient = useQueryClient()
+  const [logged, setLogged] = useState<LogVia | null>(null)
+
+  const quickMut = useMutation({
+    mutationFn: (via: LogVia) => people.logContact(person.id, via),
+    onSuccess: (_, via) => {
+      setLogged(via)
+      setTimeout(() => setLogged(null), 2000)
+      queryClient.invalidateQueries({ queryKey: ['person-timeline', person.id] })
+      queryClient.invalidateQueries({ queryKey: ['person', person.id] })
+      queryClient.invalidateQueries({ queryKey: ['people'] })
+      queryClient.invalidateQueries({ queryKey: ['reach-out-suggestions'] })
+      queryClient.invalidateQueries({ queryKey: ['today'] })
+      queryClient.invalidateQueries({ queryKey: ['reconnect'] })
+    },
+  })
+
+  return (
+    <div>
+      <p className="text-xs font-medium text-zinc-400 dark:text-zinc-500 mb-2">Quick log</p>
+      <div className="flex flex-wrap gap-1.5">
+        {QUICK_LOG_OPTIONS.map(({ via, label, icon: Icon }) => {
+          const isLogged = logged === via
+          return (
+            <button
+              key={via}
+              onClick={() => quickMut.mutate(via)}
+              disabled={quickMut.isPending}
+              className={cn(
+                'inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-full border transition-colors',
+                isLogged
+                  ? 'bg-emerald-600 text-white border-emerald-600'
+                  : 'bg-white dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 border-zinc-200 dark:border-zinc-600 hover:border-indigo-400 hover:text-indigo-600 dark:hover:text-indigo-400'
+              )}
+            >
+              {isLogged ? <Check className="w-3 h-3" /> : <Icon className="w-3 h-3" />}
+              {isLogged ? 'Done!' : label}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 function InteractionsTab({ person }: { person: Person }) {
   const queryClient = useQueryClient()
   const [logOpen, setLogOpen] = useState(false)
@@ -770,6 +877,9 @@ function InteractionsTab({ person }: { person: Person }) {
 
   return (
     <div className="space-y-4">
+      {/* Quick-log bar */}
+      <QuickLogBar person={person} />
+
       {/* Last contacted header */}
       <div className={cn(
         'flex items-center gap-2 px-4 py-3 rounded-xl border text-sm',
@@ -842,7 +952,7 @@ function InteractionsTab({ person }: { person: Person }) {
           <textarea
             value={logNote}
             onChange={e => setLogNote(e.target.value)}
-            placeholder="Add a note… (optional)"
+            placeholder="Add a note about this interaction… (optional)"
             rows={2}
             className="w-full text-sm border border-zinc-200 dark:border-zinc-600 rounded-lg px-3 py-2 bg-white dark:bg-zinc-800 dark:text-zinc-100 resize-none focus:outline-none focus:border-indigo-400 focus:ring-1 focus:ring-indigo-400"
           />

@@ -27,7 +27,9 @@ use App\Http\Controllers\API\{
     PushTokensController,
     McpController,
     AppleContactLinksController,
-    ContactScheduleController
+    GoogleContactLinksController,
+    ContactScheduleController,
+    GamificationController
 };
 
 Route::prefix('v1')->group(function () {
@@ -49,7 +51,9 @@ Route::prefix('v1')->group(function () {
         Route::post('people/enrich', [PeopleController::class, 'enrich']);
         Route::post('people/backfill-avatars', [PeopleController::class, 'backfillAvatars']);
         Route::get('people/health', [PeopleController::class, 'health']);
+        Route::get('people/reconnect', [PeopleController::class, 'reconnect']);
         Route::post('people/{person}/review', [PeopleController::class, 'review']);
+        Route::post('people/{person}/log-contact', [PeopleController::class, 'logContact']);
         Route::apiResource('people', PeopleController::class);
         Route::get('people/{person}/timeline', [PeopleController::class, 'timeline']);
         // Photos (multiple per contact)
@@ -121,6 +125,9 @@ Route::prefix('v1')->group(function () {
         Route::patch('google-accounts/{user_google_account}', [GoogleAccountsController::class, 'update']);
         Route::delete('google-accounts/{user_google_account}', [GoogleAccountsController::class, 'destroy']);
 
+        // Gamification — relationship-fitness dashboard (score, streak, goal, XP, badges)
+        Route::get('gamification/dashboard', [GamificationController::class, 'dashboard']);
+
         // Today inbox
         Route::get('today', [TodayController::class, 'index']);
         Route::post('today/items/{key}/draft', [TodayController::class, 'draft'])->where('key', '[^/]+');
@@ -174,10 +181,18 @@ Route::prefix('v1')->group(function () {
         Route::post('contact-schedule/{item}/complete', [ContactScheduleController::class, 'complete']);
         Route::post('contact-schedule/{item}/snooze',  [ContactScheduleController::class, 'snooze']);
         Route::post('contact-schedule/{item}/dismiss', [ContactScheduleController::class, 'dismiss']);
+        Route::post('contact-schedule/{item}/draft',   [ContactScheduleController::class, 'draft']);
 
         // Apple Contact identifier cloud backup (opt-in, iOS only)
         Route::get('apple-contact-links',                  [AppleContactLinksController::class, 'index']);
         Route::post('apple-contact-links',                 [AppleContactLinksController::class, 'bulkUpsert']);
         Route::delete('apple-contact-links/{personId}',    [AppleContactLinksController::class, 'destroyByPerson']);
+
+        // Google Contacts write-back (People API). Push re-asserts Kontakti's
+        // field values onto the linked Google contact. Requires the Google
+        // account to be consented with the contacts scope.
+        Route::get('google-contact-links',                 [GoogleContactLinksController::class, 'index']);
+        Route::post('people/{person}/google-contact-push', [GoogleContactLinksController::class, 'push']);
+        Route::delete('google-contact-links/{personId}',   [GoogleContactLinksController::class, 'destroyByPerson']);
     });
 });

@@ -13,6 +13,7 @@ use Pushok\AuthProvider\Token as ApnAuthToken;
 use Pushok\Client as ApnClient;
 use Pushok\Notification as ApnNotification;
 use Pushok\Payload as ApnPayload;
+use Pushok\Payload\Alert as ApnPayloadAlert;
 
 /**
  * Dispatches push notifications across iOS (APN), web (web-push), and Android (FCM).
@@ -72,47 +73,25 @@ class PushDispatcher
         }
 
         try {
-            $options = [
-                'key_id'                => $keyId,
-                'team_id'               => $teamId,
-                'app_bundle_id'         => $bundleId,
-                'private_key_path'      => $keyPath,
-                'private_key_secret'    => null,
-            ];
-            $authProvider = ApnAuthToken::create($options);
-            $client       = new ApnClient($authProvider, $isProd);
+            $authProvider = ApnAuthToken::create([
+                'key_id'             => $keyId,
+                'team_id'            => $teamId,
+                'app_bundle_id'      => $bundleId,
+                'private_key_path'   => $keyPath,
+                'private_key_secret' => null,
+            ]);
 
+            $rows = array_values(is_array($tokens) ? $tokens : iterator_to_array($tokens));
             $sent = 0;
-            foreach ($tokens as $row) {
-                $payload = ApnPayload::create()
-                    ->setAlertTitle($title)
-                    ->setAlertBody($body)
-                    ->setSound('default');
-                foreach ($data as $k => $v) {
-                    $payload->setCustomValue((string) $k, $v);
-                }
-                $notification = new ApnNotification($payload, $row->token);
-                $client->addNotification($notification);
-            }
 
-            $responses = $client->push();
-            foreach ($responses as $i => $response) {
-                $row = $tokens[$i] ?? null;
-                $status = $response->getStatusCode();
-                if ($status >= 200 && $status < 300) {
-                    $sent++;
-                    $row?->forceFill(['last_seen_at' => now()])->save();
-                } elseif (in_array($status, [400, 410], true)) {
-                    // 410 Unregistered, 400 BadDeviceToken → disable
-                    $row?->forceFill(['enabled' => false])->save();
-                    Log::info('APN token disabled', ['user_id' => $row?->user_id, 'status' => $status]);
-                } else {
-                    Log::warning('APN unexpected status', [
-                        'user_id' => $row?->user_id,
-                        'status'  => $status,
-                        'reason'  => $response->getReasonPhrase(),
-                    ]);
-                }
+            // Try the configured gateway first. Any token that fails with an
+            // environment-mismatch status (a sandbox token hitting production, or
+            // vice-versa) is retried on the OTHER gateway before we give up — so a
+            // debug/Xcode build and a TestFlight/App Store build both deliver,
+            // regardless of how APN_PRODUCTION happens to be set.
+            $retry = $this->pushApnBatch($authProvider, $isProd, $rows, $title, $body, $data, false, $sent);
+            if (!empty($retry)) {
+                $this->pushApnBatch($authProvider, !$isProd, $retry, $title, $body, $data, true, $sent);
             }
 
             return $sent;
@@ -120,6 +99,74 @@ class PushDispatcher
             Log::error('APN dispatch failed', ['err' => $e->getMessage()]);
             return 0;
         }
+    }
+
+    /**
+     * Push one batch of token rows on a single APNs environment.
+     *
+     * @param  bool  $isFinal  When false, tokens failing with a possible
+     *                         wrong-environment status (400/403) are returned for
+     *                         a retry on the other gateway instead of being
+     *                         disabled. When true, those failures are final.
+     * @return array  Rows to retry on the other gateway (empty when $isFinal).
+     */
+    private function pushApnBatch(
+        $authProvider,
+        bool $isProd,
+        array $rows,
+        string $title,
+        string $body,
+        array $data,
+        bool $isFinal,
+        int &$sent
+    ): array {
+        if (empty($rows)) {
+            return [];
+        }
+
+        $client  = new ApnClient($authProvider, $isProd);
+        $byToken = [];
+        foreach ($rows as $row) {
+            $byToken[$row->token] = $row;
+            $alert = ApnPayloadAlert::create()
+                ->setTitle($title)
+                ->setBody($body);
+            $payload = ApnPayload::create()
+                ->setAlert($alert)
+                ->setSound('default');
+            foreach ($data as $k => $v) {
+                $payload->setCustomValue((string) $k, $v);
+            }
+            $client->addNotification(new ApnNotification($payload, $row->token));
+        }
+
+        $retry = [];
+        foreach ($client->push() as $response) {
+            $row    = $byToken[$response->getDeviceToken()] ?? null;
+            $status = $response->getStatusCode();
+
+            if ($status >= 200 && $status < 300) {
+                $sent++;
+                $row?->forceFill(['last_seen_at' => now()])->save();
+            } elseif (!$isFinal && in_array($status, [400, 403], true)) {
+                // Possibly the wrong environment for this token — retry elsewhere.
+                if ($row) {
+                    $retry[] = $row;
+                }
+            } elseif (in_array($status, [400, 410], true)) {
+                // Genuinely dead on both gateways: 410 Unregistered / 400 BadDeviceToken.
+                $row?->forceFill(['enabled' => false])->save();
+                Log::info('APN token disabled', ['user_id' => $row?->user_id, 'status' => $status]);
+            } else {
+                Log::warning('APN status not delivered', [
+                    'user_id' => $row?->user_id,
+                    'status'  => $status,
+                    'reason'  => $response->getReasonPhrase(),
+                ]);
+            }
+        }
+
+        return $retry;
     }
 
     // ─── Web (VAPID + web-push) ──────────────────────────────────────────────

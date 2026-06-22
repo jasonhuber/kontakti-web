@@ -220,6 +220,8 @@ export interface ReachOutLog {
 export interface Note {
   id: string; title?: string; body: string
   notable_type?: string; notable_id?: string
+  // Appended by the API: human label + kind of the attached entity (null = unfiled).
+  notable_label?: string | null; notable_kind?: string | null
   obsidian_path?: string; synced_at?: string; sync_status?: string
   metadata: Record<string, unknown>; created_at: string; updated_at: string
 }
@@ -312,6 +314,10 @@ export const people = {
     patch<Person>(`/people/${id}`, { next_followup_at }),
   remove: (id: string) => del(`/people/${id}`),
   enrich: (linkedin_url: string) => post<Person>('/people/enrich', { linkedin_url }),
+  pushToGoogle: (id: string) =>
+    post<{ person_id: string; resource_name: string; account_email?: string; last_pushed_at?: string }>(
+      `/people/${id}/google-contact-push`, {}
+    ),
   backfillAvatars: (limit = 25) =>
     post<{ updated: number; failed: number; remaining: number }>('/people/backfill-avatars', { limit }),
   timeline: (id: string) => get<TimelineEvent[]>(`/people/${id}/timeline`),
@@ -350,6 +356,13 @@ export const people = {
     post<PersonPhoto>(`/people/${id}/photos/${photoId}/primary`, {}),
   health: () => get<PeopleHealthResponse>('/people/health'),
   review: (id: string) => post<Person>(`/people/${id}/review`, {}),
+  logContact: (id: string, via: LogVia, note?: string) =>
+    post<{ last_contacted_at: string; next_followup_at: string | null }>(
+      `/people/${id}/log-contact`,
+      { via, ...(note ? { note } : {}) },
+    ),
+  reconnect: (params?: { limit?: number; page?: number }) =>
+    get<Paginated<ReconnectPerson>>('/people/reconnect', params as Record<string, string> | undefined),
 }
 
 // — Companies —
@@ -601,6 +614,10 @@ export const today = {
 
 // — Contact quiz —
 export const quiz = {
+  today: async (): Promise<ContactPrompt[]> => {
+    const r = await get<{ prompts: ContactPrompt[] }>('/quiz/today')
+    return r?.prompts ?? []
+  },
   answer: (id: string, answer: string, structured?: Record<string, unknown>, note?: string) =>
     post<{ person: Person }>(`/quiz/${encodeURIComponent(id)}/answer`, {
       answer,
@@ -731,6 +748,22 @@ export interface ReachOutSuggestion {
   company: string | null
   channel_hint: string
   last_contact: string
+  days_since: number | null
+  overdue_days: number | null
+  why: string
+  person_first_name: string
+  person_email: string | null
+  person_phone: string | null
+  person_whatsapp: string | null
+  person_instagram: string | null
+  person_facebook: string | null
+}
+
+export interface ReconnectPerson extends Person {
+  days_since_contact: number | null
+  cadence_target_days: number | null
+  is_overdue: boolean
+  overdue_by_days: number | null
 }
 export const contactSchedule = {
   list: (params?: Record<string, string>) =>
@@ -741,6 +774,32 @@ export const contactSchedule = {
   complete: (id: number) => post<ContactScheduleItem>(`/contact-schedule/${id}/complete`, {}),
   snooze: (id: number, days = 7) => post<ContactScheduleItem>(`/contact-schedule/${id}/snooze`, { days }),
   dismiss: (id: number) => post<ContactScheduleItem>(`/contact-schedule/${id}/dismiss`, {}),
+  draft: (id: number) => post<{ draft: string }>(`/contact-schedule/${id}/draft`, {}),
+}
+
+// — Gamification (relationship fitness) —
+export type EncouragementTone = 'celebrate' | 'nudge' | 'urgent' | 'setup' | 'steady'
+export interface GamificationAchievement {
+  key: string
+  title: string
+  description: string
+  icon: string
+  earned: boolean
+  progress: { current: number; target: number }
+}
+export interface GamificationDashboard {
+  fitness_score: number | null
+  in_touch: { score: number | null; tracked: number; on_cadence: number; overdue: number; never_contacted: number }
+  curation: { score: number | null; total: number; complete: number; needs_attention: number }
+  streak: { current_weeks: number; longest_weeks: number; at_risk: boolean; this_week_outreach: number; this_week_active_days: number }
+  level: { level: number; title: string; xp: number; xp_into_level: number; xp_for_next: number }
+  goal: { title: string; target: number; progress: number; remaining: number; period: 'week' }
+  totals: { people: number; outreach_lifetime: number; reviewed: number; tasks_completed: number }
+  achievements: GamificationAchievement[]
+  encouragement: { message: string; tone: EncouragementTone }
+}
+export const gamification = {
+  dashboard: () => get<GamificationDashboard>('/gamification/dashboard'),
 }
 
 // — MCP tokens —

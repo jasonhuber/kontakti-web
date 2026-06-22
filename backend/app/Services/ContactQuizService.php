@@ -48,19 +48,27 @@ class ContactQuizService
     ];
 
     /**
-     * Build (or return today's existing) quiz for the user.
+     * Build (or return today's pending) quiz for the user.
+     *
+     * Returns only unanswered, unskipped prompts from today. When all of those
+     * are consumed, a fresh batch is generated — so users can keep going past
+     * the initial five without waiting until tomorrow.
      */
     public function generateDailyQuiz(User $user, int $limit = self::DAILY_LIMIT): Collection
     {
-        // Idempotent for the calendar day.
-        $existing = ContactPrompt::where('user_id', $user->id)
+        // Return any prompts from today that haven't been answered or skipped yet.
+        $pending = ContactPrompt::where('user_id', $user->id)
             ->whereDate('shown_at', now()->toDateString())
+            ->whereNull('answered_at')
+            ->whereNull('skipped_at')
             ->with('person')
             ->get();
-        if ($existing->isNotEmpty()) {
-            return $existing;
+
+        if ($pending->isNotEmpty()) {
+            return $pending;
         }
 
+        // All today's prompts are consumed — generate a fresh batch.
         $candidates = $this->selectCandidates($user, $limit);
 
         $prompts = collect();
