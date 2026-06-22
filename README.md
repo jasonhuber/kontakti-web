@@ -144,6 +144,42 @@ POST   /api/v1/contacts/import
 
 The backend tolerates blank `first_name` / `last_name`, normalizes obvious-bad emails to null, and skips unusable rows individually rather than failing the batch. Rows that trip review heuristics (missing last name, no email AND no phone, invalid email shape, company name without a linkable Company) are saved with `needs_review = true` and `metadata.import_warnings = [...]`.
 
+### Contact schedule (precomputed reach-out timeline)
+
+```
+GET    /api/v1/contact-schedule              ?window=180&status=pending&reason=
+GET    /api/v1/contact-schedule/suggestions  ?limit=5   ("who should I reach out to?")
+POST   /api/v1/contact-schedule/rebuild
+POST   /api/v1/contact-schedule/{id}/complete
+POST   /api/v1/contact-schedule/{id}/snooze  { days }
+POST   /api/v1/contact-schedule/{id}/dismiss
+POST   /api/v1/contact-schedule/{id}/draft
+```
+
+Per-person cadence lives on `people.contact_cadence` (+ `contact_on_birthday`,
+`contact_on_holidays`); the timeline is materialized daily by
+`kontakti:rebuild-contact-schedule`. Full design: [`docs/contact-schedule.md`](./docs/contact-schedule.md).
+
+### MCP server (LLM access)
+
+```
+POST   /api/v1/mcp                     JSON-RPC 2.0 (16 tools; bearer token w/ mcp:read / mcp:write)
+GET    /api/v1/mcp/tokens
+POST   /api/v1/mcp/tokens              { name?, read_only? }
+DELETE /api/v1/mcp/tokens/{id}
+```
+
+Plug Kontakti into Claude Desktop / Claude Code / Cursor. Write tools use a
+diff-then-confirm protocol. Full doc + client config: [`docs/mcp.md`](./docs/mcp.md).
+
+### Apple Contact links (opt-in iOS backup)
+
+```
+GET    /api/v1/apple-contact-links
+POST   /api/v1/apple-contact-links     { links: [{ person_id, cn_contact_identifier, device_label? }] }
+DELETE /api/v1/apple-contact-links/{personId}
+```
+
 ### Other
 
 ```
@@ -201,6 +237,10 @@ Architecture, build environments, repo layout, recent commits: see [`HANDOFF.md`
 What's planned next: [`NEXT_STEPS.md`](./NEXT_STEPS.md).
 
 Per-commit history: [`CHANGELOG.md`](./CHANGELOG.md).
+
+Feature deep-dives:
+- [`docs/mcp.md`](./docs/mcp.md) — MCP server (LLM access): tools, tokens, client config.
+- [`docs/contact-schedule.md`](./docs/contact-schedule.md) — contact cadence + the precomputed reach-out timeline.
 
 ---
 

@@ -66,6 +66,20 @@ Hosted at [kontakti.app](https://kontakti.app). Open source, MIT licensed, self-
 
 **Single database, `user_id` on every table.** All controllers scope to `auth()->user()` — multi-tenant by row, not by schema.
 
+### Cross-device sync model
+
+The backend is the hub — there is no device-to-device sync and no real-time push for data changes (FCM is push notifications only).
+
+| Platform | When it pulls fresh data |
+|---|---|
+| iOS | View appears (`.task { await vm.load() }`) · Pull-to-refresh · App foreground → `kontaktiDidBecomeActive` notification → all main-tab VMs call `load(reset: true)` |
+| Android | Screen created (ViewModel `refresh()` in `init`) · Pull-to-refresh (People screen) · `MainActivity.onResume` enqueues `SyncWorker` (KEEP policy) → downloads People + Companies into Room; Discussions are always API-live (no Room cache) |
+| Web | TanStack Query mount · Window focus (refetchOnWindowFocus=true) · `staleTime: 5_000` — stale data shown for at most 5 s |
+
+**Conflict model:** last writer wins. No conflict detection. Concurrent edits on two devices: the second PATCH to reach the server wins silently. Acceptable for single-user personal use.
+
+**Offline mutations:** iOS — `SyncQueue` actor persists to disk, flushed on connectivity restore. Android — `PendingSyncEntity` in Room, replayed by `SyncWorker`. Web — none (SPA is stateless).
+
 ---
 
 ## Repo layout
@@ -181,6 +195,10 @@ Production `.env` lives at `~/domains/kontakti.app/backend/.env`. Local `.env` a
 
 **hPanel MySQL password rule:** passwords containing `!`, `&`, or `*` get silently truncated. Use alphanumeric-only passwords when creating MySQL users via hPanel.
 
+**Cron / scheduler:** Laravel commands are registered in `bootstrap/app.php` `withSchedule` (`kontakti:nightly-sync` 07:00, `kontakti:rebuild-contact-schedule` 06:30). These only fire if a system cron runs `php artisan schedule:run` every minute. The SSH user has **no `crontab` binary** — cron is managed in **hPanel → Cron Jobs**. If scheduled work isn't running, check/add there: `* * * * * cd ~/domains/kontakti.app/backend && /opt/alt/php83/usr/bin/php artisan schedule:run >> /dev/null 2>&1`. To run a build manually: `php artisan kontakti:rebuild-contact-schedule`.
+
+**Docroot permissions (caused a prod outage 2026-05-30):** LiteSpeed returns 404 for EVERY file (static + PHP) if `public_html` is mode 700 — it can't traverse the docroot. `rsync -avz` preserves source perms, and macOS/Dropbox files can arrive 600/700. Symptom: site-wide 404/403 while `php artisan route:list` works fine on the server (CLI is unaffected). Fix: `chmod 755` dirs, `644` files under `public_html`. `deploy.sh` now normalizes this on every deploy, so it shouldn't recur. If diagnosing a total outage, test with a static file: `curl -sk -H "Host: kontakti.app" https://127.0.0.1/__ping.txt` from the server — if a plain `.txt` 404s, it's docroot perms, not the app.
+
 ---
 
 ## Feature inventory (2026-05-29)
@@ -206,16 +224,20 @@ All controllers `auth()->user()`-scoped:
 | Obsidian | `GET /obsidian/status`, `POST /obsidian/export` |
 | Photos | per-person multipart/data-URL/external-URL uploads, set-primary, delete |
 | Today inbox | `GET /today`, `/draft`, `/log`, `/snooze`, `/skip` |
+| Gamification | `GET /gamification/dashboard` (relationship-fitness score, weekly streak, weekly goal, XP/level, achievements, encouragement — all computed on the fly from `reach_out_log` + cadence + tasks; no table). `GamificationController` → `GamificationService`. |
 | Quiz | `POST /quiz/:id/answer`, `/skip`, `GET /quiz/history` |
 | Duplicates | `GET /duplicates`, `/scan`, `/merge`, `/dismiss` |
 | Voice | `POST /voice/capture` (multipart audio) |
 | Social groups | CRUD + per-provider sync (Facebook groups, WhatsApp QR + groups) |
 | Push | `POST/DELETE /push/register` |
 | Google accounts | list / link / update / unlink |
+| MCP server | `POST /mcp` (JSON-RPC: 7 read + 5 write w/ diff-then-confirm + 4 agentic/schedule = 16 tools), `GET/POST/DELETE /mcp/tokens` (per-user `mcp:read`/`mcp:write` Sanctum abilities). All tools scope to `auth()->user()`; cross-tenant access returns not-found. |
+| Contact schedule | `GET /contact-schedule` (queryable timeline), `/contact-schedule/suggestions` ("in the mood to reach out"), `POST /contact-schedule/{id}/complete\|snooze\|dismiss\|draft`, `POST /contact-schedule/rebuild`. Built by `kontakti:rebuild-contact-schedule` (daily 06:30, all users) from `people.contact_cadence` (default `quarterly`) + birthday/holiday flags. Deep-dive: `Website/docs/contact-schedule.md`. |
+| Apple contact links | `GET/POST /apple-contact-links`, `DELETE /apple-contact-links/{personId}` (opt-in iOS CN-identifier cloud backup) |
 
 ### Web SPA
 
-LoginPage, RegisterPage, PeoplePage (with PersonDetailModal + AddPersonModal), CompaniesPage (with CompanyDetailModal + AddCompanyModal), DiscussionsPage (with DiscussionDetailModal + LogDiscussionModal), ActivityFeedPage, GlobalSearch (⌘K palette), NoteEditor, KanbanBoard, VoiceCaptureFlow, PhotoGallery.
+LoginPage, RegisterPage, PeoplePage (with PersonDetailModal + AddPersonModal), CompaniesPage (with CompanyDetailModal + AddCompanyModal), DiscussionsPage (with DiscussionDetailModal + LogDiscussionModal), ActivityFeedPage, ProgressPage (gamification dashboard), GlobalSearch (⌘K palette), NoteEditor, KanbanBoard, VoiceCaptureFlow, PhotoGallery.
 
 ### iOS
 
