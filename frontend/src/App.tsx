@@ -223,7 +223,7 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
         {view === 'duplicates'  && <DuplicatesPage />}
         {view === 'review'      && <ReviewContactsPage />}
         {view === 'reconnect'   && <ReconnectPage />}
-        {view === 'settings'    && <SettingsPage />}
+        {view === 'settings'    && <SettingsPage onAccountDeleted={onLogout} />}
       </main>
 
       <GlobalSearch

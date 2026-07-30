@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
+  auth,
   googleAccounts,
   mcp,
   type GoogleAccount,
@@ -9,7 +10,7 @@ import {
 } from '@/lib/api'
 import {
   Loader2, Mail, Star, Trash2, AlertCircle, Plus, Bell, BellOff,
-  Cpu, Copy, Check,
+  Cpu, Copy, Check, ExternalLink,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import {
@@ -72,7 +73,7 @@ function loadGIS(): Promise<void> {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export function SettingsPage() {
+export function SettingsPage({ onAccountDeleted }: { onAccountDeleted: () => void }) {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-8">
       <div>
@@ -86,11 +87,105 @@ export function SettingsPage() {
 
       <NotificationsSection />
 
+      <AccountSection onAccountDeleted={onAccountDeleted} />
+
       <section className="bg-white border border-zinc-200 rounded-2xl p-5 space-y-2 opacity-60">
         <h2 className="text-sm font-semibold text-zinc-900">Obsidian sync</h2>
         <p className="text-xs text-zinc-500">Coming soon.</p>
       </section>
     </div>
+  )
+}
+
+function AccountSection({ onAccountDeleted }: { onAccountDeleted: () => void }) {
+  const [open, setOpen] = useState(false)
+  const [confirmation, setConfirmation] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const mutation = useMutation({
+    mutationFn: () => auth.deleteAccount(confirmation),
+    onSuccess: () => {
+      localStorage.removeItem('kontakti_token')
+      onAccountDeleted()
+    },
+    onError: (e: unknown) => {
+      setError(e instanceof Error ? e.message : 'Account deletion failed.')
+    },
+  })
+
+  return (
+    <section className="bg-white border border-zinc-200 rounded-2xl p-5 space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-zinc-900">Account</h2>
+        <p className="text-xs text-zinc-500 mt-0.5">Legal information and account controls.</p>
+      </div>
+
+      <div className="grid gap-2 sm:grid-cols-3">
+        {[
+          ['Privacy', '/privacy.html'],
+          ['Terms', '/terms.html'],
+          ['Support', '/support.html'],
+        ].map(([label, href]) => (
+          <a
+            key={href}
+            href={href}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            {label}
+            <ExternalLink className="h-3.5 w-3.5 text-zinc-400" />
+          </a>
+        ))}
+      </div>
+
+      <div className="border-t border-zinc-100 pt-4">
+        <button
+          onClick={() => { setOpen(true); setConfirmation(''); setError(null) }}
+          className="text-sm font-medium text-red-600 hover:text-red-700"
+        >
+          Delete account
+        </button>
+        <p className="mt-1 text-xs text-zinc-500">
+          Permanently removes your profile, contacts, notes, tasks, integrations, and uploaded photos.
+        </p>
+      </div>
+
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-zinc-900">Delete your Kontakti account?</h3>
+            <p className="mt-2 text-sm text-zinc-600">
+              This cannot be undone. Type <strong>DELETE</strong> to permanently remove your account and data.
+            </p>
+            <input
+              autoFocus
+              value={confirmation}
+              onChange={e => setConfirmation(e.target.value)}
+              placeholder="DELETE"
+              className="mt-4 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
+            />
+            {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setOpen(false)}
+                disabled={mutation.isPending}
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm text-zinc-700 hover:bg-zinc-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => mutation.mutate()}
+                disabled={confirmation !== 'DELETE' || mutation.isPending}
+                className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+              >
+                {mutation.isPending && <Loader2 className="h-4 w-4 animate-spin" />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   )
 }
 
@@ -667,4 +762,3 @@ function McpTokensSection() {
     </section>
   )
 }
-

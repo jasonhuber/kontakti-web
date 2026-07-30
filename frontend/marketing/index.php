@@ -200,7 +200,9 @@ header('Expires: Thu, 01 Jan 1970 00:00:00 GMT');
         <nav class="footer-links">
           <a href="https://github.com/jasonhuber/kontakti-web" target="_blank" rel="noopener">GitHub</a>
           <a href="/privacy.html">Privacy</a>
+          <a href="/terms.html">Terms</a>
           <a href="/support.html">Support</a>
+          <a href="/delete-account.html">Delete account</a>
         </nav>
         <span class="footer-suite">Part of the <a href="https://sustav.dev" target="_blank" rel="noopener">Sustav</a> suite</span>
       </div>

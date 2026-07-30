@@ -52,16 +52,26 @@ fi
 
 # ── React SPA (built to /app subdirectory) ────────────────────────────────────
 if ! $BACKEND_ONLY; then
-  echo "→ Building frontend..."
-  cd "$ROOT/frontend"
-  npm run build
+  echo "→ Building frontend from a local temp mirror..."
+  FRONTEND_BUILD_ROOT="$(mktemp -d)"
+  rsync -a \
+    --exclude='node_modules' \
+    --exclude='dist' \
+    --exclude='.DS_Store' \
+    "$ROOT/frontend/" \
+    "$FRONTEND_BUILD_ROOT/"
+  (
+    cd "$FRONTEND_BUILD_ROOT"
+    npm ci --no-audit --no-fund
+    npm run build
+  )
 
   echo "→ Deploying SPA to $REMOTE_PUBLIC/app/..."
   "${SSH_CMD[@]}" "$USER@$HOST" "mkdir -p ~/$REMOTE_PUBLIC/app && chmod 755 ~/$REMOTE_PUBLIC/app"
   rsync -avz --delete \
     -e "$RSYNC_RSH" \
     --exclude='.DS_Store' \
-    "$ROOT/frontend/dist/" \
+    "$FRONTEND_BUILD_ROOT/dist/" \
     "$USER@$HOST:~/$REMOTE_PUBLIC/app/"
 fi
 

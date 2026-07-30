@@ -86,8 +86,12 @@ POST   /api/v1/auth/login              → { token, user }
 POST   /api/v1/auth/google              { id_token } → { token, user }
 GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
+DELETE /api/v1/auth/account             { confirmation: "DELETE" }
 POST   /api/v1/auth/onboarding/complete → UserProfile
 ```
+
+Public policy and account-help pages live at `/privacy.html`, `/terms.html`,
+`/support.html`, and `/delete-account.html`.
 
 ### People
 

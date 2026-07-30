@@ -301,6 +301,8 @@ export const auth = {
   loginWithGoogle: (id_token: string) =>
     post<{ token: string; user: unknown }>('/auth/google', { id_token }),
   logout: () => post<void>('/auth/logout', {}),
+  deleteAccount: (confirmation: string) =>
+    request<{ message: string }>('DELETE', '/auth/account', { confirmation }),
   me: () => get<{ id: string; email: string; name: string }>('/auth/me'),
 }
 

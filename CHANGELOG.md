@@ -6,6 +6,24 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ---
 
+## 2026-07-30
+
+### Account deletion, legal pages, and release QA
+
+- Added authenticated `DELETE /api/v1/auth/account`; confirmation must be exactly
+  `DELETE`. The endpoint removes uploaded contact-photo directories, all Sanctum
+  tokens, the user record, and cascade-owned account data.
+- Added self-service deletion to web Settings with an explicit irreversible-data
+  warning and typed confirmation.
+- Added public Privacy, Terms, Support, and Account Deletion pages and linked them
+  from the marketing site.
+- Repaired the workspace QA harness for PowerShell 5.1 and Dropbox-hosted Android
+  builds, rotated the production QA token, and passed all 22 API smoke checks.
+- Made `deploy.sh` build the SPA from a local temporary mirror, avoiding Vite
+  stalls caused by Dropbox filesystem traversal.
+
+---
+
 ## 2026-06-01 (3)
 
 ### "In the mood to reach out?" panel — iOS + Android Today

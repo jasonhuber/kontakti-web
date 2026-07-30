@@ -7,7 +7,7 @@ use App\Models\User;
 use App\Models\UserGoogleAccount;
 use App\Services\GoogleIdTokenVerifier;
 use Illuminate\Http\{Request, JsonResponse};
-use Illuminate\Support\Facades\{Auth, Hash, Http};
+use Illuminate\Support\Facades\{Auth, DB, Hash, Http, Storage};
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -131,6 +131,27 @@ class AuthController extends Controller
     {
         $request->user()->currentAccessToken()->delete();
         return response()->json(['message' => 'Logged out.']);
+    }
+
+    public function deleteAccount(Request $request): JsonResponse
+    {
+        $request->validate([
+            'confirmation' => 'required|in:DELETE',
+        ]);
+
+        $user = $request->user();
+        $personIds = $user->people()->pluck('id');
+
+        foreach ($personIds as $personId) {
+            Storage::disk('public')->deleteDirectory("photos/{$personId}");
+        }
+
+        DB::transaction(function () use ($user): void {
+            $user->tokens()->delete();
+            $user->delete();
+        });
+
+        return response()->json(['message' => 'Account deleted.']);
     }
 
     /**
