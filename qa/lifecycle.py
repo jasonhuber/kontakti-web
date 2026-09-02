@@ -312,18 +312,18 @@ def main() -> int:
             else:
                 ok(f"[{cid}] {case['why'][:64]}")
 
-        # cases that must NOT have produced a row
+        # cases that must NOT have produced a row. Only asserted where the case
+        # names a last_name unique to it — cases that dedupe against an
+        # identically-named row are covered by the total-count check above.
         for case in batch_cases:
             if case["expect"]["imported"]:
                 continue
-            contact = case["contact"]
-            if not isinstance(contact, dict):
+            ln = case["expect"].get("no_row_with_last_name")
+            if not ln:
                 continue
-            ln = contact.get("last_name")
-            if ln:
-                dupe = next((p for p in people if p.get("last_name") == ln), None)
-                check(f"[{case['id']}] no row created", dupe is None,
-                      f"a person with last_name={ln!r} exists but should have been skipped")
+            dupe = next((p for p in people if p.get("last_name") == ln), None)
+            check(f"[{case['id']}] no row created", dupe is None,
+                  f"a person with last_name={ln!r} exists but should have been skipped")
 
         # ── 2b. rows sent on their own ────────────────────────────────────────
         for case in solo_cases:

@@ -68,6 +68,31 @@ class ContactImportController extends Controller
             if ($key !== '') $existingPhones[$key] = true;
         });
 
+        // Rows carrying neither an email nor a phone match neither pre-load set
+        // above, so a repeated device or Google import used to insert them again
+        // on every run. Key those by name instead.
+        //
+        // Only people who are themselves contactless go into this map: a name-only
+        // row must never suppress an existing person who has real contact details,
+        // because two different people can legitimately share a name. The
+        // cross-case (name-only row vs. a person with an email) is left to
+        // DuplicateDetector, which can weigh more than the name.
+        $withContactInfo = \App\Models\PersonEmail::whereIn('person_id', $personIds)->pluck('person_id')
+            ->merge(\App\Models\PersonPhone::whereIn('person_id', $personIds)->pluck('person_id'))
+            ->flip()
+            ->all();
+
+        $existingNameKeys = [];
+        $user->people()
+            ->where(fn($q) => $q->whereNull('email')->orWhere('email', ''))
+            ->where(fn($q) => $q->whereNull('phone')->orWhere('phone', ''))
+            ->get(['id', 'first_name', 'last_name'])
+            ->each(function ($p) use (&$existingNameKeys, $withContactInfo) {
+                if (isset($withContactInfo[$p->id])) return;
+                $key = $this->nameKey($p->first_name, $p->last_name);
+                if ($key !== '') $existingNameKeys[$key] = $p->id;
+            });
+
         foreach ($request->input('contacts') as $rawContact) {
             $contact = $this->normalizeContact($rawContact);
 
@@ -106,6 +131,16 @@ class ContactImportController extends Controller
                         $duplicate = true;
                         break;
                     }
+                }
+            }
+
+            // Name fallback — only for rows with nothing else to match on.
+            $nameKey = null;
+            if (!$duplicate && empty($candidateEmails)
+                && empty($contact['phone']) && empty($contact['phones'])) {
+                $nameKey = $this->nameKey($contact['first_name'], $contact['last_name']);
+                if ($nameKey !== '' && isset($existingNameKeys[$nameKey])) {
+                    $duplicate = true;
                 }
             }
 
@@ -193,7 +228,10 @@ class ContactImportController extends Controller
                 $sync->apply($person, $emailsArr, $phonesArr);
             }
 
-            // Track every new email/phone so subsequent contacts in this batch dedup correctly.
+            // Track every new email/phone/name so subsequent contacts in this batch dedup correctly.
+            if ($nameKey !== null && $nameKey !== '') {
+                $existingNameKeys[$nameKey] = $person->id;
+            }
             foreach ($candidateEmails as $em) {
                 $existingEmails[$em] = $person->id;
             }
@@ -250,6 +288,17 @@ class ContactImportController extends Controller
             'duplicates_detected'  => $duplicateCount,
             'auto_merged'          => $autoMerged,
         ], 201);
+    }
+
+    /**
+     * Dedupe key for a contactless row: case- and whitespace-insensitive full name.
+     */
+    private function nameKey(?string $first, ?string $last): string
+    {
+        $joined = trim(($first ?? '') . ' ' . ($last ?? ''));
+        $joined = preg_replace('/\s+/u', ' ', $joined);
+
+        return mb_strtolower($joined, 'UTF-8');
     }
 
     private function normalizeContact(mixed $contact): ?array

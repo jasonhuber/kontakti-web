@@ -8,6 +8,28 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ## 2026-09-02
 
+### Fix: contacts with no email and no phone duplicated on every import
+
+`ContactImportController` deduplicated on email and on digits-only phone. A row
+carrying only a name matched neither pre-load set, so every repeated device or
+Google import inserted it again — the duplicates accumulated silently, one copy
+per import run.
+
+- Added a name-key fallback: rows with no email and no phone at all now dedupe on
+  a case-folded, whitespace-collapsed `first last` key. New rows enter the map as
+  they are created, so duplicates inside a single payload are caught too.
+- The map holds **only contactless people**. A name-only row can never suppress
+  an existing person who has real contact details, because two different people
+  can legitimately share a name; that cross-case stays with `DuplicateDetector`,
+  which can weigh more than the name alone.
+- Covered by three new cases in `qa/fixtures/contacts-edge-cases.json`: an
+  in-batch name duplicate, a casing/whitespace variant, and a distinct
+  contactless name that must still import.
+
+---
+
+## 2026-09-02
+
 ### Write-path QA harness (`qa/lifecycle.py`)
 
 `qa-smoke.sh` only ever proved the read surface answers. Everything that writes —
@@ -27,14 +49,8 @@ lifecycle, tenant isolation, account deletion — had no automated coverage at a
   and confirm the disposable account gets 403/404 on read and write. They skip
   rather than fail when that file is absent.
 
-First full run: **49 passed, 2 failed**. Both failures are one real defect, left
-red on purpose rather than asserted as expected behaviour:
-
-- **Contacts with neither an email nor a phone duplicate on every re-import.**
-  `ContactImportController` deduplicates on email and on digits-only phone. A row
-  carrying only a name matches neither pre-load set, so a repeated device or
-  Google import inserts it again each time. Reproduce: import a name-only contact
-  twice; the second run reports `imported: 1`.
+First full run: **49 passed, 2 failed**. Both failures were one real defect,
+fixed below.
 
 Two further findings recorded in the fixtures as current behaviour, not fixed:
 

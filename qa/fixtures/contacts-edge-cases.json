@@ -39,7 +39,7 @@
         "last_name": "Lovelace-Duplicate",
         "email": "ADA@Example.COM"
       },
-      "expect": { "imported": false }
+      "expect": { "imported": false, "no_row_with_last_name": "Lovelace-Duplicate" }
     },
     {
       "id": "phone-format-dedupe",
@@ -49,7 +49,7 @@
         "last_name": "By-Phone",
         "phone": "15550101234"
       },
-      "expect": { "imported": false }
+      "expect": { "imported": false, "no_row_with_last_name": "By-Phone" }
     },
     {
       "id": "in-batch-duplicate",
@@ -72,7 +72,7 @@
         "last_name": "Hopper (work address book)",
         "email": "grace@example.com"
       },
-      "expect": { "imported": false }
+      "expect": { "imported": false, "no_row_with_last_name": "Hopper (work address book)" }
     },
     {
       "id": "last-name-only",
@@ -288,6 +288,36 @@
       "expect": {
         "imported": true,
         "person": { "first_name_length": 100 }
+      }
+    },
+    {
+      "id": "name-only-in-batch-duplicate",
+      "why": "A second contactless row with the same name as multi-email-all-invalid. Rows with no email and no phone match neither dedupe set, so before the name fallback every re-import inserted these again. Must be skipped.",
+      "contact": {
+        "first_name": "Margaret",
+        "last_name": "Hamilton"
+      },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "name-only-case-and-space-insensitive",
+      "why": "The name key is lowercased and has its whitespace collapsed, so casing and stray spaces must not defeat it.",
+      "contact": {
+        "first_name": "  MARGARET ",
+        "last_name": "  hamilton  "
+      },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "name-only-distinct-person",
+      "why": "The guard rail on the fallback: a different contactless name still imports. Without this, a bug that keys on something too coarse would look like a pass.",
+      "contact": {
+        "first_name": "Evelyn",
+        "last_name": "Boyd Granville"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Evelyn", "last_name": "Boyd Granville", "email": null }
       }
     },
     {
