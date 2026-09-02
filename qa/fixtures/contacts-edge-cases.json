@@ -1,0 +1,311 @@
+{
+  "_comment": [
+    "Contact-import corpus for qa/lifecycle.py. Each case is one entry in the",
+    "'contacts' array POSTed to /api/v1/contacts/import, plus the outcome the",
+    "harness asserts after reading the people list back.",
+    "",
+    "'expect.imported' false means ContactImportController::normalizeContact()",
+    "returns null, or the row deduped against an earlier case in this same batch.",
+    "'expect.person' fields are compared against the created person; only the",
+    "keys present are checked. Cases run in array order — dedupe cases depend on",
+    "the case they collide with appearing earlier.",
+    "",
+    "Every email uses the reserved example.com domain so nothing here can reach a",
+    "real mailbox if a future test path ever sends mail."
+  ],
+
+  "cases": [
+    {
+      "id": "baseline",
+      "why": "Ordinary complete contact. If this fails nothing else matters.",
+      "contact": {
+        "first_name": "Ada",
+        "last_name": "Lovelace",
+        "email": "ada@example.com",
+        "phone": "+1 (555) 010-1234",
+        "company_name": "Analytical Engines",
+        "source": "google"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Ada", "last_name": "Lovelace", "email": "ada@example.com" }
+      }
+    },
+    {
+      "id": "email-case-dedupe",
+      "why": "Emails are lowercased before the existing-email lookup, so a differently-cased duplicate must not create a second person.",
+      "contact": {
+        "first_name": "Ada",
+        "last_name": "Lovelace-Duplicate",
+        "email": "ADA@Example.COM"
+      },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "phone-format-dedupe",
+      "why": "Phone dedupe normalizes to digits only. Same number, different punctuation, must collide with the baseline case.",
+      "contact": {
+        "first_name": "Ada",
+        "last_name": "By-Phone",
+        "phone": "15550101234"
+      },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "in-batch-duplicate",
+      "why": "Two entries with the same email inside a single payload. The second must be skipped, not written.",
+      "contact": {
+        "first_name": "Grace",
+        "last_name": "Hopper",
+        "email": "grace@example.com"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Grace", "last_name": "Hopper" }
+      }
+    },
+    {
+      "id": "in-batch-duplicate-second",
+      "why": "The colliding half of the pair above.",
+      "contact": {
+        "first_name": "Grace",
+        "last_name": "Hopper (work address book)",
+        "email": "grace@example.com"
+      },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "last-name-only",
+      "why": "A surname with no given name is promoted into first_name rather than producing a nameless row.",
+      "contact": {
+        "last_name": "Turing",
+        "email": "turing@example.com"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Turing", "last_name": "" }
+      }
+    },
+    {
+      "id": "email-derived-name",
+      "why": "No name at all falls back to Str::headline() of the email local part. Google exports do this constantly. Str::headline splits on underscores, hyphens and camelCase but NOT on dots, so 'katherine.johnson' becomes 'Katherine.johnson' — asserted here as current behaviour. firstname.lastname is the most common Gmail shape, so this is worth revisiting.",
+      "contact": { "email": "katherine.johnson@example.com" },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Katherine.johnson", "email": "katherine.johnson@example.com" }
+      }
+    },
+    {
+      "id": "phone-derived-name",
+      "why": "Phone-only contact. first_name becomes the raw phone string — ugly but intentional, and it must not be skipped.",
+      "contact": { "phone": "+1 555 010 7777" },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "+1 555 010 7777" }
+      }
+    },
+    {
+      "id": "empty-contact",
+      "why": "Nothing identifying. normalizeContact returns null and the row counts as skipped.",
+      "contact": { "nickname": "just a nickname" },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "invalid-email-no-name",
+      "why": "A malformed email is dropped, which leaves nothing to name the person with, so the row is skipped rather than stored with a junk email.",
+      "contact": { "email": "not-an-email-at-all" },
+      "expect": { "imported": false }
+    },
+    {
+      "id": "multi-email-primary-flag",
+      "why": "With no legacy 'email' key, the primary is derived from the is_primary flag in the array — not from array position.",
+      "contact": {
+        "first_name": "Radia",
+        "last_name": "Perlman",
+        "emails": [
+          { "value": "radia.personal@example.com", "label": "home", "is_primary": false },
+          { "value": "radia.work@example.com", "label": "work", "is_primary": true }
+        ]
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Radia", "email": "radia.work@example.com" }
+      }
+    },
+    {
+      "id": "multi-email-no-primary",
+      "why": "No is_primary anywhere falls back to the first array entry.",
+      "contact": {
+        "first_name": "Barbara",
+        "last_name": "Liskov",
+        "emails": [
+          { "value": "barbara.first@example.com", "label": "other" },
+          { "value": "barbara.second@example.com", "label": "other" }
+        ]
+      },
+      "expect": {
+        "imported": true,
+        "person": { "email": "barbara.first@example.com" }
+      }
+    },
+    {
+      "id": "multi-email-all-invalid",
+      "why": "Every entry fails FILTER_VALIDATE_EMAIL, so the array collapses to null and the name carries the row.",
+      "contact": {
+        "first_name": "Margaret",
+        "last_name": "Hamilton",
+        "emails": [
+          { "value": "@@@", "label": "work" },
+          { "value": "", "label": "home" }
+        ]
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Margaret", "email": null }
+      }
+    },
+    {
+      "id": "unknown-labels-coerced",
+      "why": "Labels outside the allowlist are coerced ('other' for email, 'mobile' for phone) instead of reaching the DB raw.",
+      "contact": {
+        "first_name": "Annie",
+        "last_name": "Easley",
+        "emails": [{ "value": "annie@example.com", "label": "spaceship", "is_primary": true }],
+        "phones": [{ "value": "+1 555 010 2222", "label": "carrier-pigeon", "is_primary": true }]
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Annie", "email": "annie@example.com" }
+      }
+    },
+    {
+      "id": "birthday-valid",
+      "why": "Y-m-d is the only accepted birthday format.",
+      "contact": {
+        "first_name": "Jean",
+        "last_name": "Bartik",
+        "email": "jean@example.com",
+        "birthday": "1924-12-27"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "birthday": "1924-12-27" }
+      }
+    },
+    {
+      "id": "birthday-us-format",
+      "why": "A US-format date must be rejected outright, not silently reinterpreted as some other day.",
+      "contact": {
+        "first_name": "Betty",
+        "last_name": "Holberton",
+        "email": "betty@example.com",
+        "birthday": "03/07/1917"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "birthday": null }
+      }
+    },
+    {
+      "id": "birthday-impossible-date",
+      "why": "createFromFormat accepts 2026-02-30 and rolls it to March 2; the round-trip equality check is what rejects it. This case guards that check.",
+      "contact": {
+        "first_name": "Frances",
+        "last_name": "Spence",
+        "email": "frances@example.com",
+        "birthday": "2026-02-30"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "birthday": null }
+      }
+    },
+    {
+      "id": "source-not-allowlisted",
+      "why": "An unrecognized source is nulled rather than stored. The people response does not expose 'source', so this case only asserts the row still imports instead of being rejected over the bad value.",
+      "contact": {
+        "first_name": "Kathleen",
+        "last_name": "Antonelli",
+        "email": "kathleen@example.com",
+        "source": "linkedin-scrape"
+      },
+      "expect": { "imported": true }
+    },
+    {
+      "id": "social-handles-cleaned",
+      "why": "Instagram loses its @, WhatsApp is reduced to digits, and a non-Facebook URL in facebook_url is discarded.",
+      "contact": {
+        "first_name": "Marlyn",
+        "last_name": "Meltzer",
+        "email": "marlyn@example.com",
+        "instagram_handle": "@marlyn",
+        "whatsapp_phone": "+1 (555) 010-3333",
+        "facebook_url": "https://example.com/not-facebook"
+      },
+      "expect": {
+        "imported": true,
+        "person": {
+          "instagram_handle": "marlyn",
+          "whatsapp_phone": "15550103333",
+          "facebook_url": null
+        }
+      }
+    },
+    {
+      "id": "facebook-url-valid",
+      "why": "The positive half of the facebook_url regex.",
+      "contact": {
+        "first_name": "Ruth",
+        "last_name": "Teitelbaum",
+        "email": "ruth@example.com",
+        "facebook_url": "https://www.facebook.com/ruth.t"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "facebook_url": "https://www.facebook.com/ruth.t" }
+      }
+    },
+    {
+      "id": "unicode-name",
+      "why": "Croatian diacritics must survive the round trip byte-for-byte. A mangled collation shows up here first.",
+      "contact": {
+        "first_name": "Željko",
+        "last_name": "Šimić",
+        "email": "zeljko@example.com"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name": "Željko", "last_name": "Šimić" }
+      }
+    },
+    {
+      "id": "overlong-first-name",
+      "why": "cleanString truncates to the column width. Without it the insert throws and the whole batch dies.",
+      "contact": {
+        "first_name": "Aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "email": "overlong@example.com"
+      },
+      "expect": {
+        "imported": true,
+        "person": { "first_name_length": 100 }
+      }
+    },
+    {
+      "id": "not-an-object",
+      "why": "A bare string where an object belongs. normalizeContact() has an is_array guard for exactly this, but the 'contacts.*' => 'array' validation rule rejects the whole request first, so one bad row kills an entire import. Sent on its own and asserted against CURRENT behaviour (422); flip expect_status to 200 the day the rule is relaxed.",
+      "exclude_from_batch": true,
+      "expect_status": 422,
+      "contact": "this is a string, not a contact",
+      "expect": { "imported": false }
+    },
+    {
+      "id": "html-in-name",
+      "why": "Stored as-is at the API layer; this case exists so that if escaping is ever added server-side the change is caught deliberately rather than noticed in the UI.",
+      "contact": {
+        "first_name": "<script>alert(1)</script>",
+        "email": "xss@example.com"
+      },
+      "expect": { "imported": true }
+    }
+  ]
+}

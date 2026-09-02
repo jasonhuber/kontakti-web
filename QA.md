@@ -112,3 +112,20 @@ hand it back. Fixing is the dev agent's job.
 
 All authenticated endpoints want `Authorization: Bearer $QA_TOKEN` and
 `Accept: application/json`.
+
+## Write-path harness
+
+`qa-smoke.sh` covers the read surface. `qa/lifecycle.py` covers the write surface
+— registration, contact import (normalization + dedupe), the
+person/company/discussion/note/task lifecycle, tenant isolation, and account
+deletion. It registers a disposable account, runs against that, and deletes it
+in a `finally` block, so it is safe against production and leaves nothing behind.
+
+```bash
+python3 qa/lifecycle.py            # target read from .qa-token
+python3 qa/lifecycle.py --keep     # leave the disposable account for inspection
+```
+
+Exit code is the number of failed checks. Import expectations live in
+`qa/fixtures/contacts-edge-cases.json`, one case per row with the reason it
+exists — add a case there rather than editing assertions in the script.

@@ -6,6 +6,52 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ---
 
+## 2026-09-02
+
+### Write-path QA harness (`qa/lifecycle.py`)
+
+`qa-smoke.sh` only ever proved the read surface answers. Everything that writes —
+registration, bulk contact import, the person/company/discussion/note/task
+lifecycle, tenant isolation, account deletion — had no automated coverage at all.
+
+- Added `qa/lifecycle.py`: registers a disposable account, exercises the full
+  write path against it, and deletes the account in a `finally` block. Safe to
+  point at production; it never writes as a real user and leaves nothing behind.
+  Python stdlib only — no `vendor/`, no `pip install`.
+- Added `qa/fixtures/contacts-edge-cases.json`: 24 contact-import cases covering
+  dedupe (email case-folding, phone punctuation, in-batch collisions), the
+  name-derivation fallbacks, multi-email/phone primary selection, label coercion,
+  birthday parsing, social-handle cleaning, unicode, and length truncation. Each
+  case carries the reason it exists and the outcome asserted.
+- Cross-tenant checks borrow one person id via the read-only token in `.qa-token`
+  and confirm the disposable account gets 403/404 on read and write. They skip
+  rather than fail when that file is absent.
+
+First full run: **49 passed, 2 failed**. Both failures are one real defect, left
+red on purpose rather than asserted as expected behaviour:
+
+- **Contacts with neither an email nor a phone duplicate on every re-import.**
+  `ContactImportController` deduplicates on email and on digits-only phone. A row
+  carrying only a name matches neither pre-load set, so a repeated device or
+  Google import inserts it again each time. Reproduce: import a name-only contact
+  twice; the second run reports `imported: 1`.
+
+Two further findings recorded in the fixtures as current behaviour, not fixed:
+
+- **One malformed row rejects the entire import.** `contacts.*` => `array`
+  validation fires before the controller runs, so a single non-object entry 422s
+  the whole batch. `normalizeContact()`'s `is_array` guard is unreachable, and a
+  2,000-contact import fails wholesale on one bad row.
+- **`Str::headline` does not split on dots**, so a nameless `first.last@` contact
+  becomes `First.last` rather than `First Last`. That is the most common Gmail
+  local-part shape.
+
+Also noted: Cloudflare rejects the default `Python-urllib/3.x` user agent with a
+1010 before the request reaches Laravel. Any Python tooling against this API must
+set an explicit `User-Agent`.
+
+---
+
 ## 2026-07-30
 
 ### Account deletion, legal pages, and release QA
