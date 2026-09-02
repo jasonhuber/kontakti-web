@@ -23,3 +23,7 @@ frontend/.env.production
 # QA credentials — never commit
 .qa-token
 .qa-secret-tmp
+
+# Python bytecode from qa/
+__pycache__/
+*.pyc
