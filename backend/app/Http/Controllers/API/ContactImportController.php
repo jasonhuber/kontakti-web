@@ -14,7 +14,6 @@ class ContactImportController extends Controller
     {
         $request->validate([
             'contacts'          => 'required|array|min:1',
-            'contacts.*'        => 'array',
             'google_account_id' => 'sometimes|integer',
         ]);
 
@@ -378,7 +377,8 @@ class ContactImportController extends Controller
         }
 
         if ($firstName === '' && $email) {
-            $firstName = $this->cleanString(Str::headline(Str::before($email, '@')), 100) ?? $email;
+            $emailName = str_replace('.', ' ', Str::before($email, '@'));
+            $firstName = $this->cleanString(Str::headline($emailName), 100) ?? $email;
         }
 
         if ($firstName === '' && $phone) {

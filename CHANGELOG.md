@@ -6,6 +6,17 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ---
 
+## 2026-09-03
+
+### Harden mixed contact imports and email-derived names
+
+- A malformed entry inside `contacts` is now counted as skipped instead of
+  causing Laravel validation to reject the entire otherwise-valid batch.
+- Name fallback now converts dots in an email local part to spaces before
+  headline casing, so `first.last@example.com` becomes `First Last`.
+- Updated the lifecycle fixture so both behaviors remain covered by the full
+  mixed-batch and idempotency checks.
+
 ## 2026-09-02
 
 ### Fix: contacts with no email and no phone duplicated on every import

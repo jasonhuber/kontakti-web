@@ -88,11 +88,11 @@
     },
     {
       "id": "email-derived-name",
-      "why": "No name at all falls back to Str::headline() of the email local part. Google exports do this constantly. Str::headline splits on underscores, hyphens and camelCase but NOT on dots, so 'katherine.johnson' becomes 'Katherine.johnson' — asserted here as current behaviour. firstname.lastname is the most common Gmail shape, so this is worth revisiting.",
+      "why": "No name at all falls back to the email local part. Dots are converted to spaces before Str::headline(), so the common firstname.lastname shape becomes a readable name.",
       "contact": { "email": "katherine.johnson@example.com" },
       "expect": {
         "imported": true,
-        "person": { "first_name": "Katherine.johnson", "email": "katherine.johnson@example.com" }
+        "person": { "first_name": "Katherine Johnson", "email": "katherine.johnson@example.com" }
       }
     },
     {
@@ -322,9 +322,7 @@
     },
     {
       "id": "not-an-object",
-      "why": "A bare string where an object belongs. normalizeContact() has an is_array guard for exactly this, but the 'contacts.*' => 'array' validation rule rejects the whole request first, so one bad row kills an entire import. Sent on its own and asserted against CURRENT behaviour (422); flip expect_status to 200 the day the rule is relaxed.",
-      "exclude_from_batch": true,
-      "expect_status": 422,
+      "why": "A bare string where an object belongs. It is skipped by normalizeContact() without rejecting the valid contacts around it.",
       "contact": "this is a string, not a contact",
       "expect": { "imported": false }
     },

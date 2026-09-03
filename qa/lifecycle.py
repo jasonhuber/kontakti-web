@@ -345,8 +345,8 @@ def main() -> int:
         check("re-importing the same batch imports nothing new",
               r.status in (200, 201) and body.get("imported") == 0,
               f"HTTP {r.status}, imported={body.get('imported')} "
-              f"{dupes} — rows with neither an email nor a phone have nothing to "
-              f"dedupe against, so every re-import duplicates them")
+              f"{dupes} — the import must be idempotent across email, phone, and "
+              f"contactless-name fallback keys")
         check("people count is unchanged after the re-import",
               len(all_people(base, token)) == expected_imported,
               "the second import created rows")
