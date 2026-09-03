@@ -17,6 +17,13 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 - Updated the lifecycle fixture so both behaviors remain covered by the full
   mixed-batch and idempotency checks.
 
+### Split the web application by feature
+
+- Kept the signed-out login and registration shell in the initial JavaScript
+  bundle while lazy-loading authenticated pages, global search, onboarding, and
+  the voice-capture flow on demand.
+- Added a neutral in-app loading state while a feature chunk arrives.
+
 ## 2026-09-02
 
 ### Fix: contacts with no email and no phone duplicated on every import

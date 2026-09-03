@@ -1,30 +1,31 @@
-import { useState, useEffect } from 'react'
+import { lazy, Suspense, useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
-import { GlobalSearch } from '@/components/GlobalSearch'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
-import { OnboardingPage } from '@/pages/OnboardingPage'
-import { PeoplePage } from '@/pages/People'
-import { CompaniesPage } from '@/pages/Companies'
-import { DiscussionsPage } from '@/pages/Discussions'
-import { ActivityFeedPage } from '@/pages/ActivityFeedPage'
-import { TasksPage } from '@/pages/TasksPage'
-import { NotesPage } from '@/pages/NotesPage'
-import { DuplicatesPage } from '@/pages/DuplicatesPage'
-import { SettingsPage } from '@/pages/SettingsPage'
-import { TodayPage } from '@/pages/TodayPage'
-import { SocialGroupsPage } from '@/pages/SocialGroupsPage'
-import { ReviewContactsPage } from '@/pages/ReviewContactsPage'
-import { ReconnectPage } from '@/pages/ReconnectPage'
-import { ProgressPage } from '@/pages/ProgressPage'
 import { auth, duplicates, today as todayApi, people as peopleApi, gamification as gamificationApi } from '@/lib/api'
 import { isPushSupported, registerServiceWorker } from '@/lib/push'
-import { VoiceCaptureFlow } from '@/components/VoiceCaptureFlow'
 import {
   Search, Users, Building2, Share2, Settings, Activity, LogOut, Mic,
   CheckSquare, FileText, Copy, Sunrise, UsersRound, ShieldCheck, RefreshCcw, Trophy,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+
+const OnboardingPage = lazy(() => import('@/pages/OnboardingPage').then(module => ({ default: module.OnboardingPage })))
+const PeoplePage = lazy(() => import('@/pages/People').then(module => ({ default: module.PeoplePage })))
+const CompaniesPage = lazy(() => import('@/pages/Companies').then(module => ({ default: module.CompaniesPage })))
+const DiscussionsPage = lazy(() => import('@/pages/Discussions').then(module => ({ default: module.DiscussionsPage })))
+const ActivityFeedPage = lazy(() => import('@/pages/ActivityFeedPage').then(module => ({ default: module.ActivityFeedPage })))
+const TasksPage = lazy(() => import('@/pages/TasksPage').then(module => ({ default: module.TasksPage })))
+const NotesPage = lazy(() => import('@/pages/NotesPage').then(module => ({ default: module.NotesPage })))
+const DuplicatesPage = lazy(() => import('@/pages/DuplicatesPage').then(module => ({ default: module.DuplicatesPage })))
+const SettingsPage = lazy(() => import('@/pages/SettingsPage').then(module => ({ default: module.SettingsPage })))
+const TodayPage = lazy(() => import('@/pages/TodayPage').then(module => ({ default: module.TodayPage })))
+const SocialGroupsPage = lazy(() => import('@/pages/SocialGroupsPage').then(module => ({ default: module.SocialGroupsPage })))
+const ReviewContactsPage = lazy(() => import('@/pages/ReviewContactsPage').then(module => ({ default: module.ReviewContactsPage })))
+const ReconnectPage = lazy(() => import('@/pages/ReconnectPage').then(module => ({ default: module.ReconnectPage })))
+const ProgressPage = lazy(() => import('@/pages/ProgressPage').then(module => ({ default: module.ProgressPage })))
+const GlobalSearch = lazy(() => import('@/components/GlobalSearch').then(module => ({ default: module.GlobalSearch })))
+const VoiceCaptureFlow = lazy(() => import('@/components/VoiceCaptureFlow').then(module => ({ default: module.VoiceCaptureFlow })))
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 5_000 } },
@@ -51,6 +52,14 @@ const NAV: { id: View; label: string; icon: React.ComponentType<{ className?: st
 ]
 
 type NavTarget = { type: 'person' | 'company' | 'discussion'; id: string } | null
+
+function PageFallback() {
+  return (
+    <div className="flex min-h-full items-center justify-center text-sm text-zinc-400 dark:text-zinc-500">
+      Loading…
+    </div>
+  )
+}
 
 function AppShell({ onLogout }: { onLogout: () => void }) {
   const [view, setView] = useState<View>('today')
@@ -196,57 +205,61 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto">
-        {view === 'today'       && <TodayPage />}
-        {view === 'progress'    && <ProgressPage />}
-        {view === 'people'      && (
-          <PeoplePage
-            openPersonId={navTarget?.type === 'person' ? navTarget.id : null}
-            onPersonOpened={() => setNavTarget(null)}
-          />
-        )}
-        {view === 'companies'   && (
-          <CompaniesPage
-            openCompanyId={navTarget?.type === 'company' ? navTarget.id : null}
-            onCompanyOpened={() => setNavTarget(null)}
-          />
-        )}
-        {view === 'discussions' && (
-          <DiscussionsPage
-            openDiscussionId={navTarget?.type === 'discussion' ? navTarget.id : null}
-            onDiscussionOpened={() => setNavTarget(null)}
-          />
-        )}
-        {view === 'tasks'       && <TasksPage />}
-        {view === 'notes'       && <NotesPage />}
-        {view === 'feed'        && <ActivityFeedPage />}
-        {view === 'groups'      && <SocialGroupsPage />}
-        {view === 'duplicates'  && <DuplicatesPage />}
-        {view === 'review'      && <ReviewContactsPage />}
-        {view === 'reconnect'   && <ReconnectPage />}
-        {view === 'settings'    && <SettingsPage onAccountDeleted={onLogout} />}
+        <Suspense fallback={<PageFallback />}>
+          {view === 'today'       && <TodayPage />}
+          {view === 'progress'    && <ProgressPage />}
+          {view === 'people'      && (
+            <PeoplePage
+              openPersonId={navTarget?.type === 'person' ? navTarget.id : null}
+              onPersonOpened={() => setNavTarget(null)}
+            />
+          )}
+          {view === 'companies'   && (
+            <CompaniesPage
+              openCompanyId={navTarget?.type === 'company' ? navTarget.id : null}
+              onCompanyOpened={() => setNavTarget(null)}
+            />
+          )}
+          {view === 'discussions' && (
+            <DiscussionsPage
+              openDiscussionId={navTarget?.type === 'discussion' ? navTarget.id : null}
+              onDiscussionOpened={() => setNavTarget(null)}
+            />
+          )}
+          {view === 'tasks'       && <TasksPage />}
+          {view === 'notes'       && <NotesPage />}
+          {view === 'feed'        && <ActivityFeedPage />}
+          {view === 'groups'      && <SocialGroupsPage />}
+          {view === 'duplicates'  && <DuplicatesPage />}
+          {view === 'review'      && <ReviewContactsPage />}
+          {view === 'reconnect'   && <ReconnectPage />}
+          {view === 'settings'    && <SettingsPage onAccountDeleted={onLogout} />}
+        </Suspense>
       </main>
 
-      <GlobalSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
-        onNavigate={(url) => {
-          setSearchOpen(false)
-          // Parse /people/:id  /companies/:id  /discussions/:id
-          const [, type, id] = url.split('/')
-          if (type === 'people' && id) {
-            setView('people')
-            setNavTarget({ type: 'person', id })
-          } else if (type === 'companies' && id) {
-            setView('companies')
-            setNavTarget({ type: 'company', id })
-          } else if (type === 'discussions' && id) {
-            setView('discussions')
-            setNavTarget({ type: 'discussion', id })
-          } else if (type === 'notes') {
-            setView('notes')
-          }
-        }}
-      />
+      <Suspense fallback={null}>
+        <GlobalSearch
+          open={searchOpen}
+          onOpenChange={setSearchOpen}
+          onNavigate={(url) => {
+            setSearchOpen(false)
+            // Parse /people/:id  /companies/:id  /discussions/:id
+            const [, type, id] = url.split('/')
+            if (type === 'people' && id) {
+              setView('people')
+              setNavTarget({ type: 'person', id })
+            } else if (type === 'companies' && id) {
+              setView('companies')
+              setNavTarget({ type: 'company', id })
+            } else if (type === 'discussions' && id) {
+              setView('discussions')
+              setNavTarget({ type: 'discussion', id })
+            } else if (type === 'notes') {
+              setView('notes')
+            }
+          }}
+        />
+      </Suspense>
 
       {/* Global voice memo FAB */}
       <button
@@ -259,7 +272,9 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
       </button>
 
       {voiceOpen && (
-        <VoiceCaptureFlow onClose={() => setVoiceOpen(false)} />
+        <Suspense fallback={null}>
+          <VoiceCaptureFlow onClose={() => setVoiceOpen(false)} />
+        </Suspense>
       )}
     </div>
   )
@@ -312,7 +327,7 @@ export default function App() {
             ? <LoginPage onLogin={handleAuth} onRegisterClick={() => setAuthView('register')} />
             : <RegisterPage onRegister={handleAuth} onLoginClick={() => setAuthView('login')} />)
         : !onboarded
-          ? <OnboardingPage onComplete={handleOnboardingComplete} />
+          ? <Suspense fallback={<PageFallback />}><OnboardingPage onComplete={handleOnboardingComplete} /></Suspense>
           : <AppShell onLogout={handleLogout} />
       }
     </QueryClientProvider>
