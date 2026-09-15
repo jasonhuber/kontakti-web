@@ -421,6 +421,101 @@ def main() -> int:
             check("POST /people/{id}/log-contact records an interaction",
                   r.status in (200, 201, 204), f"HTTP {r.status}: {r.snippet()}")
 
+        if company_id:
+            section("account plan")
+            r = request("GET", base, f"/api/v1/companies/{company_id}/account-plan", token)
+            plan = (r.json or {}).get("data") or r.json or {}
+            plan_id = plan.get("id")
+            check("GET /companies/{id}/account-plan creates or loads a plan",
+                  r.status == 200 and bool(plan_id),
+                  f"HTTP {r.status}: {r.snippet()}")
+
+            if plan_id:
+                r = request("PATCH", base, f"/api/v1/account-plans/{plan_id}", token, {
+                    "status": "active",
+                    "objective": "Prove account plans through lifecycle QA",
+                    "summary": "Disposable account plan created by qa/lifecycle.py",
+                })
+                check("PATCH /account-plans/{id} updates editable sections",
+                      r.status in (200, 201),
+                      f"HTTP {r.status}: {r.snippet()}")
+
+                r = request("POST", base, f"/api/v1/account-plans/{plan_id}/items", token, {
+                    "type": "next_step",
+                    "title": "Confirm plan item CRUD",
+                    "priority": "high",
+                    "status": "todo",
+                    "person_id": person_id,
+                    "due_at": "2026-09-30",
+                })
+                plan = (r.json or {}).get("data") or r.json or {}
+                items = plan.get("items") or []
+                item_id = items[-1].get("id") if items else None
+                check("POST /account-plans/{id}/items creates a linked item",
+                      r.status in (200, 201) and bool(item_id),
+                      f"HTTP {r.status}: {r.snippet()}")
+
+                if item_id:
+                    r = request("PATCH", base, f"/api/v1/account-plan-items/{item_id}", token, {
+                        "status": "in_progress",
+                    })
+                    check("PATCH /account-plan-items/{id} updates an item",
+                          r.status in (200, 201),
+                          f"HTTP {r.status}: {r.snippet()}")
+
+                r = request("POST", base, f"/api/v1/account-plans/{plan_id}/ai/preview", token, {
+                    "instruction": "Enter five items",
+                    "ui_context": {
+                        "view": "company_detail",
+                        "selected_tab": "account_plan",
+                        "company_id": company_id,
+                        "account_plan_id": plan_id,
+                    },
+                })
+                operations = (r.json or {}).get("operations") or []
+                check("POST /account-plans/{id}/ai/preview returns proposed operations",
+                      r.status == 200 and len(operations) >= 5,
+                      f"HTTP {r.status}: ops={len(operations)} body={r.snippet(400)}")
+
+                if operations:
+                    accepted_operations = operations[:2]
+                    r = request("POST", base, f"/api/v1/account-plans/{plan_id}/ai/apply", token, {
+                        "operations": accepted_operations,
+                    })
+                    plan = ((r.json or {}).get("plan") or {})
+                    applied = (r.json or {}).get("applied") or []
+                    applied_item_count = len(plan.get("items") or [])
+                    check("POST /account-plans/{id}/ai/apply creates accepted operations",
+                          r.status in (200, 201) and len(applied) == 2 and applied_item_count >= 3,
+                          f"HTTP {r.status}: {r.snippet(400)}")
+
+                    r = request("POST", base, f"/api/v1/account-plans/{plan_id}/ai/apply", token, {
+                        "operations": accepted_operations,
+                    })
+                    retry_plan = ((r.json or {}).get("plan") or {})
+                    retry_applied = (r.json or {}).get("applied") or []
+                    check("retrying the same account-plan operations is idempotent",
+                          r.status == 200
+                          and len(retry_plan.get("items") or []) == applied_item_count
+                          and all(item.get("created") is False for item in retry_applied),
+                          f"HTTP {r.status}: {r.snippet(400)}")
+
+                    if len(operations) >= 3:
+                        invalid_operation = {
+                            "op": "create_plan_item",
+                            "type": "next_step",
+                        }
+                        r = request("POST", base, f"/api/v1/account-plans/{plan_id}/ai/apply", token, {
+                            "operations": [operations[2], invalid_operation],
+                        })
+                        after = request("GET", base, f"/api/v1/companies/{company_id}/account-plan", token)
+                        after_plan = (after.json or {}).get("data") or after.json or {}
+                        check("a rejected account-plan batch rolls back earlier operations",
+                              r.status == 422
+                              and after.status == 200
+                              and len(after_plan.get("items") or []) == applied_item_count,
+                              f"apply HTTP {r.status}, reload HTTP {after.status}: {r.snippet(400)}")
+
         r = request("POST", base, "/api/v1/duplicates/scan", token, {})
         check("POST /duplicates/scan runs over the imported set",
               r.status in (200, 201, 202), f"HTTP {r.status}: {r.snippet()}")

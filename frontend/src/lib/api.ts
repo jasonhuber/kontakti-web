@@ -232,6 +232,74 @@ export interface Task {
   taskable?: Person | Company | null
   priority: TaskPriority; created_at: string; updated_at: string
 }
+export type AccountPlanStatus = 'draft' | 'active' | 'paused' | 'complete'
+export type AccountPlanItemType = 'next_step' | 'milestone' | 'risk' | 'question' | 'stakeholder_action'
+export type AccountPlanItemStatus = 'todo' | 'in_progress' | 'done' | 'dismissed'
+export interface AccountPlanItem {
+  id: number
+  account_plan_id: string
+  type: AccountPlanItemType
+  title: string
+  description?: string | null
+  status: AccountPlanItemStatus
+  priority: TaskPriority
+  due_at?: string | null
+  person_id?: string | null
+  person?: Person | null
+  task_id?: string | null
+  task?: Task | null
+  source_type?: string | null
+  source_id?: string | null
+  operation_key?: string | null
+  ai_generated: boolean
+  ai_confidence?: number | null
+  metadata?: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+export interface AccountPlan {
+  id: string
+  user_id: number
+  company_id: string
+  company?: Company
+  title: string
+  status: AccountPlanStatus
+  objective?: string | null
+  summary?: string | null
+  known_context?: unknown[] | null
+  risks?: unknown[] | null
+  open_questions?: unknown[] | null
+  messaging_angles?: unknown[] | null
+  metadata?: Record<string, unknown> | null
+  items: AccountPlanItem[]
+  created_at: string
+  updated_at: string
+}
+export interface AccountPlanOperation {
+  op: 'update_plan' | 'create_plan_item'
+  patch?: Partial<AccountPlan>
+  explanation?: string
+  type?: AccountPlanItemType
+  title?: string
+  description?: string | null
+  status?: AccountPlanItemStatus
+  priority?: TaskPriority
+  due_at?: string | null
+  person_id?: string | null
+  task_id?: string | null
+  source_type?: string | null
+  source_id?: string | null
+  operation_key?: string | null
+  ai_generated?: boolean
+  ai_confidence?: number | null
+  metadata?: Record<string, unknown> | null
+  create_task?: boolean
+}
+export interface AccountPlanPreview {
+  summary: string
+  operations: AccountPlanOperation[]
+  health: { key: string; missing: boolean; label: string }[]
+}
 export interface SearchResult {
   type: string; id: string; title: string; subtitle: string; url: string
 }
@@ -378,6 +446,24 @@ export const companies = {
   deals: (id: string) => get<Deal[]>(`/companies/${id}/deals`),
   discussions: (id: string) => get<Discussion[]>(`/companies/${id}/discussions`),
   notes: (id: string) => get<Paginated<Note>>('/notes', { notable_type: 'App\\Models\\Company', notable_id: id }),
+  accountPlan: (id: string) => get<AccountPlan>(`/companies/${id}/account-plan`),
+}
+
+// — Account plans —
+export const accountPlans = {
+  update: (id: string, data: Partial<AccountPlan>) => patch<AccountPlan>(`/account-plans/${id}`, data),
+  createItem: (id: string, data: Partial<AccountPlanItem>) =>
+    post<AccountPlan>(`/account-plans/${id}/items`, data),
+  updateItem: (id: number, data: Partial<AccountPlanItem>) =>
+    patch<AccountPlan>(`/account-plan-items/${id}`, data),
+  removeItem: (id: number) => del(`/account-plan-items/${id}`),
+  preview: (id: string, instruction: string, uiContext?: Record<string, unknown>) =>
+    post<AccountPlanPreview>(`/account-plans/${id}/ai/preview`, {
+      instruction,
+      ...(uiContext ? { ui_context: uiContext } : {}),
+    }),
+  apply: (id: string, operations: AccountPlanOperation[]) =>
+    post<{ applied: unknown[]; plan: AccountPlan }>(`/account-plans/${id}/ai/apply`, { operations }),
 }
 
 // — Deals —

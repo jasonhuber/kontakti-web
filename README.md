@@ -126,7 +126,17 @@ PUT    /api/v1/companies/{id}
 DELETE /api/v1/companies/{id}
 GET    /api/v1/companies/{id}/people
 GET    /api/v1/companies/{id}/discussions
+GET    /api/v1/companies/{id}/account-plan
+PATCH  /api/v1/account-plans/{id}
+POST   /api/v1/account-plans/{id}/items
+PATCH  /api/v1/account-plan-items/{id}
+DELETE /api/v1/account-plan-items/{id}
+POST   /api/v1/account-plans/{id}/ai/preview
+POST   /api/v1/account-plans/{id}/ai/apply
 ```
+
+Account-plan AI-style edits use a preview/apply contract. Preview operations
+carry idempotency keys, and apply batches are transactional.
 
 ### Discussions
 

@@ -6,6 +6,21 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ---
 
+## 2026-09-15
+
+### Account-plan milestone and repository safeguards
+
+- Added company-scoped account plans with editable plan items and a guarded
+  preview/apply command workflow in the web app.
+- Made batch application transactional and added per-operation idempotency keys
+  so failed or retried requests do not leave partial or duplicate work.
+- Extended the disposable lifecycle harness with account-plan CRUD, preview,
+  apply, retry, and rollback checks.
+- Added CI for the frontend build, PHP syntax, and Python QA harness.
+- Refreshed safe npm lockfile updates, removing the high-severity
+  `linkify-it`/`markdown-it` findings. The remaining TipTap upgrade is tracked
+  separately because it is breaking.
+
 ## 2026-09-03
 
 ### Harden mixed contact imports and email-derived names
