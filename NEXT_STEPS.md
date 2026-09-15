@@ -38,7 +38,9 @@ This is the active-work list. Things that are done live in commit history (see `
 
 ## In progress
 
-(none — last session closed all open tasks)
+- **Account plans (web)** — first-class company plans, editable plan items, and a preview/apply command box are implemented on `codex/account-plan-stabilize`. The apply path is transactional and preview operations carry idempotency keys so retries do not duplicate items or linked tasks. Local frontend/PHP/Python checks pass; Laravel migrations, route registration, lifecycle QA, and production deployment still require a complete Laravel runtime.
+- **Repository CI** — a GitHub Actions workflow now builds the frontend, checks PHP syntax, and compiles the Python lifecycle harness. It will become active after this branch is pushed.
+- **Dependency maintenance** — safe npm updates removed the high-severity `linkify-it`/`markdown-it` advisories. The remaining TipTap advisory requires a separately tested v2-to-v3 migration.
 
 ---
 

@@ -5,6 +5,7 @@ import { PersonCard } from '@/components/PersonCard'
 import { PersonDetailModal } from './PersonDetailModal'
 import { EditCompanyModal } from './EditCompanyModal'
 import { NoteEditor } from '@/components/NoteEditor'
+import { AccountPlanTab } from './AccountPlanTab'
 import { formatRelativeDate, cn } from '@/lib/utils'
 import { X, Building2, Globe, Linkedin, Users, MessageSquare, Loader2, Pencil, Trash2, Plus, Copy } from 'lucide-react'
 
@@ -21,7 +22,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
   const queryClient = useQueryClient()
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null)
   const [editing, setEditing] = useState(false)
-  const [tab, setTab] = useState<'overview' | 'notes'>('overview')
+  const [tab, setTab] = useState<'overview' | 'plan' | 'notes'>('overview')
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [selectedNote, setSelectedNote] = useState<Note | null>(null)
   const [creatingNote, setCreatingNote] = useState(false)
@@ -102,7 +103,7 @@ export function CompanyDetailModal({ company, onClose }: Props) {
       {/* Backdrop (z-40 / panel z-50 — Tailwind default scale) */}
       <div className="fixed inset-0 z-40 bg-black/40" onClick={handleBackdropClick} />
 
-      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-md bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
+      <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl bg-white dark:bg-zinc-900 shadow-2xl flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-100 dark:border-zinc-800 shrink-0">
           <div className="flex items-center gap-3">
@@ -156,6 +157,15 @@ export function CompanyDetailModal({ company, onClose }: Props) {
             )}
           >
             Overview
+          </button>
+          <button
+            onClick={() => setTab('plan')}
+            className={cn(
+              'flex-1 py-2.5 text-xs font-medium transition-colors',
+              tab === 'plan' ? 'text-indigo-600 border-b-2 border-indigo-600' : 'text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-300'
+            )}
+          >
+            Account plan
           </button>
           <button
             onClick={() => setTab('notes')}
@@ -277,6 +287,10 @@ export function CompanyDetailModal({ company, onClose }: Props) {
                 )}
               </div>
             </div>
+          )}
+
+          {tab === 'plan' && (
+            <AccountPlanTab company={c} />
           )}
 
           {tab === 'notes' && (

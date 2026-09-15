@@ -29,7 +29,8 @@ use App\Http\Controllers\API\{
     AppleContactLinksController,
     GoogleContactLinksController,
     ContactScheduleController,
-    GamificationController
+    GamificationController,
+    AccountPlansController
 };
 
 Route::prefix('v1')->group(function () {
@@ -72,6 +73,15 @@ Route::prefix('v1')->group(function () {
         Route::get('companies/{company}/people', [CompaniesController::class, 'people']);
         Route::get('companies/{company}/deals', [CompaniesController::class, 'deals']);
         Route::get('companies/{company}/discussions', [CompaniesController::class, 'discussions']);
+        Route::get('companies/{company}/account-plan', [AccountPlansController::class, 'showForCompany']);
+
+        // Account plans — editable company planning workspace + preview/apply command box
+        Route::patch('account-plans/{accountPlan}', [AccountPlansController::class, 'update']);
+        Route::post('account-plans/{accountPlan}/items', [AccountPlansController::class, 'storeItem']);
+        Route::post('account-plans/{accountPlan}/ai/preview', [AccountPlansController::class, 'preview']);
+        Route::post('account-plans/{accountPlan}/ai/apply', [AccountPlansController::class, 'apply']);
+        Route::patch('account-plan-items/{item}', [AccountPlansController::class, 'updateItem']);
+        Route::delete('account-plan-items/{item}', [AccountPlansController::class, 'destroyItem']);
 
         // Discussions
         Route::apiResource('discussions', DiscussionsController::class);
