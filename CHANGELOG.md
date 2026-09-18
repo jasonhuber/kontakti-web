@@ -6,6 +6,28 @@ The repo is small enough that this isn't an automated changelog — it's a curat
 
 ---
 
+## 2026-09-18
+
+### Fix: MCP server rejected by strict clients (Claude Code "Failed to connect")
+
+The endpoint answered curl fine but real MCP clients validate the handshake
+against the spec schema and dropped the connection.
+
+- `initialize` returned `"capabilities": {"tools": []}` — PHP's empty array
+  serializes as a JSON array, the spec requires an object. Now `new \stdClass()`
+  → `{}`. Same fix for `get_contact_health`'s empty `inputSchema.properties`.
+- `notifications/initialized` was answered with a JSON-RPC body carrying
+  `"id": null`. Notifications (any `notifications/*` with no `id`) now get
+  `202` and no JSON-RPC response, per the MCP HTTP transport.
+- Verified against prod: `claude mcp list` → `kontakti ✓ Connected`.
+
+Deployed 2026-09-18 from the Windows box via ssh+tar (no rsync there), same
+excludes and artisan steps as `deploy.sh --backend-only`. That deploy also
+shipped the pending 09-02/09-03 backend work and ran the two
+`2026_09_03_*account_plan*` migrations.
+
+---
+
 ## 2026-09-03
 
 ### Harden mixed contact imports and email-derived names

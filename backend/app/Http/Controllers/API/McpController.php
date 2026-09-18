@@ -42,9 +42,13 @@ class McpController extends Controller
         $id     = $rpc['id'] ?? null;
         $params = $rpc['params'] ?? [];
 
+        // Notifications (no id) get no JSON-RPC response — 202 with an empty body per the MCP HTTP transport.
+        if (!array_key_exists('id', $rpc) && str_starts_with($method, 'notifications/')) {
+            return response()->json(null, 202);
+        }
+
         return match ($method) {
             'initialize'              => $this->initialize($id),
-            'notifications/initialized' => response()->json(['jsonrpc' => '2.0', 'id' => $id, 'result' => null]),
             'ping'                    => $this->ok($id, []),
             'tools/list'              => $this->toolsList($id),
             'tools/call'              => $this->toolsCall($params, $id),
@@ -112,7 +116,8 @@ class McpController extends Controller
     {
         return $this->ok($id, [
             'protocolVersion' => self::PROTOCOL_VERSION,
-            'capabilities'    => ['tools' => []],
+            // Must serialize as {} — strict MCP clients reject "tools": [].
+            'capabilities'    => ['tools' => new \stdClass()],
             'serverInfo'      => ['name' => 'kontakti', 'version' => '1.0.0'],
         ]);
     }
@@ -825,7 +830,7 @@ class McpController extends Controller
             [
                 'name'        => 'get_contact_health',
                 'description' => 'Get a summary of data quality issues across all contacts (missing fields, needs review, etc.).',
-                'inputSchema' => ['type' => 'object', 'properties' => []],
+                'inputSchema' => ['type' => 'object', 'properties' => new \stdClass()],
             ],
             [
                 'name'        => 'who_should_i_reconnect_with',
